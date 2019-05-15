@@ -22,6 +22,7 @@ data Exp =  Fls
           | Deref Exp
           | EqualsInt Exp Exp
           | Fix Exp
+          | While Exp Exp
           | Location Loc deriving(Show,Eq,Ord)
 
 data Types = Unita | Boolean | Integer | Fun Types Types | TypeRef Types deriving (Show,Eq,Ord)

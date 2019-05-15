@@ -9,11 +9,11 @@ import Control.Applicative (Applicative(..))
 import Control.Monad       (liftM, ap)
 
 --prog = stmt (';' prog)?
---stmt = var ':=' exp | 'let' var '=' stmt 'in' '{' prog '}' | 'letrec' var tipo stmt in stmt  |exp
---exp =  'if' exp 'then' stmt 'else' '{' stmt '}' | 'alloc' exp | '*' exp | equals
+--stmt = var ':=' exp | 'let' var '=' stmt 'in'  prog | 'letrec' var tipo stmt in stmt  |exp
+--exp =  'while' '(' equals ')' '{' prog '}'  | 'if' exp 'then' stmt 'else' '{' stmt '}' | 'alloc' exp | '*' exp | equals
 --equals = app '==' 'if' exp 'then' stmt  'else' stmt | app '==' '*' exp | app '==' app | 'fix' app | app
 --app = '(' stmt ')' '(' stmt ')' | succ
---succ= 'pred' succ | 'iszero' succ | 'succ' succ | values
+--succ= 'pred' succ | 'iszero' succ | 'succ' succ | '(' stmt ')' |values
 --var = num
 --values = '\\' var ':(' tipo ')' '->' stmt | 'true' | 'false' | '0' | var
 
@@ -92,6 +92,13 @@ symbol stringa = do
    res <- string stringa
    space
    return res
+
+parenthesisparser :: Parser Exp
+parenthesisparser = do
+    symbol "("
+    arg <- stmtparse
+    symbol ")"
+    return arg
 
 ifParse = do
     symbol "if"
@@ -190,8 +197,20 @@ expparse = do
     expr <- ifParse +++
             allocparse +++
             derefparse +++
+            whileparse +++
             equalparse
     return expr
+
+whileparse :: Parser Exp
+whileparse = do
+    symbol "while"
+    symbol "("
+    guard <- equalparse
+    symbol ")"
+    symbol "{"
+    prog <- progparse
+    symbol "}"
+    return (While guard prog)
 
 checkparse :: Parser Bool
 checkparse = Parser(\x ->
@@ -268,5 +287,5 @@ firstparse = do
 
 valueparse :: Parser Exp
 valueparse = do
-    t <- lambdaparse+++trueParse+++falseParse+++zeroParse+++varparse
+    t <- lambdaparse+++trueParse+++falseParse+++zeroParse+++parenthesisparser+++varparse
     return t

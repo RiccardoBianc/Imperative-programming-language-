@@ -7,6 +7,7 @@ import Data.List
 import Data.Ord
 
 freeVars :: Exp -> [Var]
+freeVars (While guard prog) = (freeVars guard) `union` (freeVars prog)
 freeVars (Fix t) = freeVars t
 freeVars (EqualsInt t1 t2) = (freeVars t1) `union` (freeVars t2)
 freeVars (Ref t) = freeVars t
@@ -28,6 +29,7 @@ freeVars (App term1 term2) = union (freeVars term1) (freeVars term2)
 freeVars _ = []
 
 allVars :: Exp -> [Var]
+allVars (While guard prog) = (allVars guard) `union` (allVars prog)
 allVars (Fix t) = allVars t
 allVars (EqualsInt t1 t2) = (allVars t1) `union` (allVars t2)
 allVars (Ref t) = allVars t
@@ -49,6 +51,7 @@ allVars (App term1 term2) = union (allVars term1) (allVars term2)
 allVars _ = []
 
 subst :: Exp -> Exp -> Var -> Exp
+subst (While guard prog) t' y = (While (subst guard t' y) (subst prog t' y))
 subst (Fix t) t' y = (Fix (subst t t' y))
 subst (EqualsInt t1 t2) t' y = (EqualsInt (subst t1 t' y) (subst t2 t' y) )
 subst (Location (Loc x)) _ _ = (Location (Loc x))
@@ -99,6 +102,7 @@ update_memory location value memory = if (lookup location memory) == Nothing the
 create_loc (Memory memory) value = let (locs,values) = unzip memory in if memory == [] then (Just(Location (Loc 0)),Memory [(0,value)])else (Just(Location (Loc ((maximum locs)+1))),Memory(memory++[((maximum locs)+1,value)]))
 
 reduce :: Exp -> Memory -> (Maybe Exp,Memory)
+reduce (While guard prog) memory = (Just (IfThenElse guard (While guard prog) Unit),memory)
 reduce (Fix ((Lambda (Var x) tipo t))) memory = (Just (subst t (Fix ((Lambda (Var x) tipo t))) (Var x)),memory)
 reduce (Fix t) memory = case reduce t memory of
   (Just t',memory') -> (Just (Fix t'),memory')
