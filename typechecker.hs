@@ -10,7 +10,9 @@ replace :: Int -> Types -> Context -> Context
 replace variable new_type (Context context) = if (lookup variable context)==Nothing then Context (union [(variable,new_type)] context) else Context (map (\(x,tipo) -> if x == variable then (x,new_type) else (x,tipo)) context)
 
 typeof :: Exp -> Context -> AssignType -> Maybe Types
-typeof (While guard prog) context sigma = (Just Unita)
+typeof (While guard prog) context sigma = case (typeof guard context sigma,typeof prog context sigma) of
+                                                (Just Boolean,Just _) -> (Just Unita)
+                                                _ -> Nothing
 typeof (Fix t) context sigma = case typeof t context sigma of
                                 (Just (Fun a b)) | a==b -> Just a
                                 _ -> Nothing
