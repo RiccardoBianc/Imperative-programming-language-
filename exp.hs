@@ -6,7 +6,6 @@ data Loc = Loc Int deriving (Show,Eq,Ord)
 data Var = Var Int deriving (Show,Eq,Ord)
 data Exp =  Fls
           | Tru
-          | Zero
           | Unit
           | Succ Exp
           | IsZero Exp
@@ -23,6 +22,8 @@ data Exp =  Fls
           | EqualsInt Exp Exp
           | Fix Exp
           | While Exp Exp
+          | Plus Exp Exp
+          | Num Int
           | Location Loc deriving(Show,Eq,Ord)
 
 data Types = Unita | Boolean | Integer | Fun Types Types | TypeRef Types deriving (Show,Eq,Ord)

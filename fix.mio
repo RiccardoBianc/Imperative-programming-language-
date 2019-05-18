@@ -1,2 +1,16 @@
-let 1 = alloc succ succ 0 in
-1 := *1;pred pred pred succ (*1)
+letrec somma :(int -> int -> int) = \ a :(int) -> \ b :(int) ->
+if(iszero a){
+b
+}
+else{
+((somma)(pred a)) (succ b)
+}
+in
+letrec prodotto :(int -> int -> int) = \ a :(int) -> \ b :(int) ->
+if (iszero b){
+0
+}
+else{
+((somma)(a)) (  ((prodotto)(a) )  (pred b))
+}
+in ((prodotto)(succ succ succ succ succ 0))(succ succ succ succ succ 0)

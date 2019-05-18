@@ -21,7 +21,7 @@ shell = do
 interpreter :: IO String
 interpreter = do
                 program <- getLine
-                case  (parse progparse program) of
+                case  (parse (firstparse) program) of
                     [] -> return "Errore di parsing"
                     (parsed,""):xs -> case typeof parsed (Context []) (AssignType []) of
                                         Just _ -> return(show(reduceStar parsed (Memory [])))
@@ -32,7 +32,7 @@ lettura :: String -> IO String
 lettura filename = do
     res <- readFile filename
     let program = filter (/='\n') res
-    case  (parse progparse program) of
+    case  (parse (firstparse ) program ) of
                         [] -> return ("Errore di parsing")
                         (parsed,""):xs -> case typeof parsed (Context []) (AssignType []) of
                                             Just _ -> return(show(reduceStar parsed (Memory [])))

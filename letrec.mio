@@ -1,2 +1,1 @@
-letrec 1 :(int->bool) = \ 2 : (int) -> if (iszero 2) { true } else {if (iszero pred 2) { false } else { (1) (pred pred 2) } }
-in (1) (succ succ succ 0)
+letrec 
