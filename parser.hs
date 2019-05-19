@@ -12,11 +12,11 @@ import Control.Monad       (liftM, ap)
 --stmt = var ':=' exp | 'let' var '=' stmt 'in'  prog | 'letrec' var tipo stmt in stmt | exp
 --exp =  'while' '(' equals ')' '{' prog '}'  | 'if' exp 'then' '{' stmt '}' 'else' '{' stmt '}' | 'alloc' exp | '*' exp | equals
 --equals = sum '==' 'if' exp 'then' stmt  'else' stmt | sum '==' '*' exp | sum '==' sum | 'fix' sum | sum
---sum = app ('+' sum)*
---app = '(' stmt ')' '(' stmt ')' | succ
---succ= 'pred' succ | 'iszero' succ | 'succ' succ | '(' stmt ')' |values
+--sum = app ('+' sum)* | app ('-' sum)*
+--app = var stmt | succ
+--succ= 'pred' succ | 'iszero' succ | 'succ' succ | values
 --var = num
---values = '\\' var ':(' tipo ')' '->' stmt | 'true' | 'false' | NUM | var | NUM
+--values = '\\' var ':(' tipo ')' '->' stmt | 'true' | 'false' | NUM | var | '(' stmt ')'
 
 data Parser a = Parser (String -> [(a,String)])
 
@@ -159,17 +159,24 @@ typeparse = do
         do{remaining <- typeparse; if tipo=="bool" then return (Fun Boolean remaining) else return (Fun Integer remaining) }
     else (if tipo == "bool" then do{return Boolean} else do{return Integer})
 
+applicationParse variables = do
+    (name,variables') <- varparse variables+++lambdaparse variables
+    (res,variables'') <- stmtparse variables'
+    return ((App name res),variables'')
+
 appParse :: [(String,Int)] -> Parser (Exp,[(String,Int)])
 appParse variables = do
-    check <- symbol "("+++return []
-    if check == "(" then do{
-    (t1,variables') <- stmtparse variables;
-    symbol ")";
-    symbol "(";
-    (t2,variables'') <- stmtparse variables';
-    symbol ")";
-    return ((App t1 t2),variables'')}
-    else do{(suc,variables') <- succParse variables;return (suc,variables')}
+    (res,variables') <- applicationParse variables+++succParse variables
+    return (res,variables')
+    -- check <- symbol "("+++return []
+    -- if check == "(" then do{
+    -- (t1,variables') <- stmtparse variables;
+    -- symbol ")";
+    -- symbol "(";
+    -- (t2,variables'') <- stmtparse variables';
+    -- symbol ")";
+    -- return ((App t1 t2),variables'')}
+    -- else do{(suc,variables') <- succParse variables;return (suc,variables')}
 
 devar (Variable (Var x)) = Var x
 
@@ -210,7 +217,7 @@ expparse variables = do
 whileparse variables = do
     symbol "while"
     symbol "("
-    (guard,variables') <- sumparse variables
+    (guard,variables') <- sum_minusparse variables
     symbol ")"
     symbol "{"
     (prog,variables'') <- progparse variables'
@@ -223,22 +230,25 @@ checkparse = Parser(\x ->
                         [] -> [(True,x)]
                         _ -> [])
 
-sumparse variables = do
+sum_minusparse variables = do
     (a,variables') <- appParse variables
-    check <- symbol "+"+++return []
+    check <- symbol "+"+++symbol "-"+++return []
     if check == [] then return (a,variables') else
         do{
-        (b,variables'') <- sumparse variables';
-        return ((Plus a b),variables'')}
+        (b,variables'') <- sum_minusparse variables';
+        if check == "+"
+            then return ((Plus a b),variables'')
+            else return ((Minus a b),variables'')
+        }
 
 
 equalparse :: [(String,Int)] -> Parser (Exp,[(String,Int)])
 equalparse variables = do
-    (t1,variables') <- fixparse variables+++sumparse variables
+    (t1,variables') <- fixparse variables+++sum_minusparse variables
     check <- symbol "=="+++return []
     if check == [] then return (t1,variables') else
         do{
-        (t2,variables'') <- ifParse variables'+++allocparse variables'+++derefparse variables'+++sumparse variables';
+        (t2,variables'') <- ifParse variables'+++allocparse variables'+++derefparse variables'+++sum_minusparse variables';
         return ((EqualsInt t1 t2),variables'')}
 
 -- fixparse :: [(String,Int)] -> Parser Exp

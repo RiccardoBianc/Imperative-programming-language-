@@ -24,6 +24,7 @@ data Exp =  Fls
           | While Exp Exp
           | Plus Exp Exp
           | Num Int
+          | Minus Exp Exp
           | Location Loc deriving(Show,Eq,Ord)
 
 data Types = Unita | Boolean | Integer | Fun Types Types | TypeRef Types deriving (Show,Eq,Ord)

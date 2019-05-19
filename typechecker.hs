@@ -10,6 +10,9 @@ replace :: Int -> Types -> Context -> Context
 replace variable new_type (Context context) = if (lookup variable context)==Nothing then Context (union [(variable,new_type)] context) else Context (map (\(x,tipo) -> if x == variable then (x,new_type) else (x,tipo)) context)
 
 typeof :: Exp -> Context -> AssignType -> Maybe Types
+typeof (Minus a b) context sigma = case (typeof a context sigma,typeof b context sigma) of
+                                    (Just Integer,Just Integer) -> (Just Integer)
+                                    _ -> Nothing
 typeof (Num a) context sigma = Just Integer
 typeof (Plus a b) context sigma = case (typeof a context sigma,typeof b context sigma) of
                                     (Just Integer,Just Integer) -> (Just Integer)

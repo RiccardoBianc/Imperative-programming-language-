@@ -8,6 +8,7 @@ import Data.Ord
 
 freeVars :: Exp -> [Var]
 freeVars (Num a) = []
+freeVars (Minus a b) = (freeVars a) `union` (freeVars b)
 freeVars (Plus a b) = (freeVars a) `union` (freeVars b)
 freeVars (While guard prog) = (freeVars guard) `union` (freeVars prog)
 freeVars (Fix t) = freeVars t
@@ -30,6 +31,7 @@ freeVars (App term1 term2) = union (freeVars term1) (freeVars term2)
 freeVars _ = []
 
 allVars :: Exp -> [Var]
+allVars (Minus a b) = (allVars a) `union` (allVars b)
 allVars (Num a) = []
 allVars (Plus a b) = (allVars a) `union` (allVars b)
 allVars (While guard prog) = (allVars guard) `union` (allVars prog)
@@ -53,6 +55,7 @@ allVars (App term1 term2) = union (allVars term1) (allVars term2)
 allVars _ = []
 
 subst :: Exp -> Exp -> Var -> Exp
+subst (Minus a b) t' y = (Minus (subst a t' y) (subst b t' y))
 subst (Num a) _ _ = (Num a)
 subst (Plus a b) t' y = (Plus (subst a t' y) (subst b t' y))
 subst (While guard prog) t' y = (While (subst guard t' y) (subst prog t' y))
@@ -104,6 +107,13 @@ update_memory location value memory = if (lookup location memory) == Nothing the
 create_loc (Memory memory) value = let (locs,values) = unzip memory in if memory == [] then (Just(Location (Loc 0)),Memory [(0,value)])else (Just(Location (Loc ((maximum locs)+1))),Memory(memory++[((maximum locs)+1,value)]))
 
 reduce :: Exp -> Memory -> (Maybe Exp,Memory)
+reduce (Minus (Num a) (Num b)) memory = (Just (Num (a-b)),memory)
+reduce (Minus (Num a) t) memory = case reduce t memory of
+                                  (Just t',memory) -> (Just (Minus (Num a) t'),memory)
+                                  _ -> (Nothing,memory)
+reduce (Minus t t1) memory = case reduce t memory of
+                                  (Just t',memory) -> (Just (Minus t' t1),memory)
+                                  _ -> (Nothing,memory)
 reduce (Plus (Num a) (Num b)) memory = (Just (Num (a+b)),memory)
 reduce (Plus (Num a) t) memory = case reduce t memory of
                                   (Just t',memory) -> (Just (Plus (Num a) t'),memory)
