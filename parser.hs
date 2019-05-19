@@ -167,13 +167,16 @@ applicationParse variables acc = do
                              falseParse variables+++
                              parseNUM variables+++
                              varparse variables+++do{symbol "(";(lambda,variables') <- stmtparse variables; symbol ")";return (lambda,variables')};
+        space
         right <- applicationParse variables' (App acc res)+++return(App acc res,variables');
+        space
         return right
 
 
 appParse :: [(String,Int)] -> Parser (Exp,[(String,Int)])
 appParse variables = do
     (name,variables') <- varparse variables+++do{symbol "(";(lambda,variables') <- stmtparse variables; symbol ")";return (lambda,variables')};
+    space
     (res,variables'') <- applicationParse variables' name
     return (res,variables'')
 
