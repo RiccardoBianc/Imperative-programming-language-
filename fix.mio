@@ -1,1 +1,1 @@
-let x = \ x :(int) -> x+2 in x 12
+(\ x :(bool) -> \ y:(int) -> \ z:(int) ->  if(x){ y} else {z}) true 12 42
