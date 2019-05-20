@@ -1,4 +1,4 @@
-letrec prodotto:(int -> int ->int) = \ a :(int) -> \b :(int) -> 
+letrec prodotto:(int -> int ->int) = \ a :(int) -> \b :(int) ->
 if(a ==0){
 0
 }
@@ -12,4 +12,4 @@ if (a==0){
 else{
 prodotto a (fattoriale (a-1))
 }
-in fattoriale 10
+in fattoriale 16

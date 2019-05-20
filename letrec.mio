@@ -1,6 +1,1 @@
-letrec even:(int->bool) =
-\ n: (int) ->
-if (n==0){true}
-else{ if(iszero pred n){false}
-else {(even) (pred pred n) }}in
-(even) (2-1)
+12
