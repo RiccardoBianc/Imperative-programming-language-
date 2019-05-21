@@ -31,7 +31,7 @@ interpreter = do
 lettura :: String -> IO String
 lettura filename = do
     res <- readFile filename
-    case  (parse (firstparse ) res ) of
+    case  (parse (firstparse) (filter (/='\n') res) ) of
                         [] -> return ("Errore di parsing")
                         (parsed,""):xs -> case typeof parsed (Context []) (AssignType []) of
                                             Just _ -> return(show(reduceStar parsed (Memory [])))

@@ -278,7 +278,7 @@ findFresh ((name,x):xs) acc = if acc < x then findFresh xs (x+1) else if acc == 
 
 varparse :: [(String,Int)] -> Parser (Exp,[(String,Int)])
 varparse variables = do
-    name <- (many(letter))+++failure
+    name <- (many1(letter))+++return []
     if name /= [] then
         case lookup name variables of
                 (Just x) -> return ((Variable (Var (x))),variables)
@@ -318,13 +318,14 @@ letparser variables = do
 
 -- progparse :: [(String,Int)] -> Parser Exp
 progparse variables = do
+   return (Num 1,[])
    (esp,variables') <- stmtparse variables
    punto_e_virgola <- symbol ";"+++return []
    if punto_e_virgola == ";" then do{(t2,variables'') <- progparse variables'; return ((Seq esp t2),variables'') } else return (esp,variables')
 
--- firstparse :: [(String,Int)] -> Parser Exp
+firstparse :: Parser Exp
 firstparse = do
-    (res,variables') <- progparse []
+    (res,variables) <- progparse []
     checkparse
     return res
 
