@@ -7,6 +7,7 @@ import Typechecker
 import Reducer
 import System.IO
 import Control.Monad
+import Inference
 
 shell :: IO String
 shell = do

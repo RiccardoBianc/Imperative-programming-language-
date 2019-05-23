@@ -1,11 +1,11 @@
 module Exp
 
 where
---
---
--- data TypeVariable = VarT Int | Type Types | FunType TypeVariable TypeVariable deriving(Eq,Show)
--- data Costraint = Costraint TypeVariable TypeVariable deriving(Eq,Show)
--- data ContextInference = ContextInference [(Int,TypeVariable)] deriving(Show,Eq,Ord)
+
+
+data TypeVariable = VarT Int | Type Types | FunType TypeVariable TypeVariable deriving(Eq,Show,Ord)
+data Costraint = Costraint TypeVariable TypeVariable deriving(Eq,Show,Ord)
+data ContextInference = ContextInference [(Int,TypeVariable)] deriving(Show,Eq,Ord)
 data Loc = Loc Int deriving (Show,Eq,Ord)
 data Var = Var Int deriving (Show,Eq,Ord)
 data Exp =  Fls
@@ -16,7 +16,8 @@ data Exp =  Fls
           | Pred Exp
           | IfThenElse Exp Exp Exp
           | Variable Var
-         -- | LambdaUntyped TypeVariable Exp
+          | LambdaUntyped Var Exp
+          | Lambda2 Var TypeVariable Exp
           | Lambda Var Types Exp
           | App Exp Exp
           | Seq Exp Exp
