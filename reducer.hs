@@ -1,10 +1,10 @@
 module Reducer
 
 where
-import Exp
-import Data.Char
-import Data.List
-import Data.Ord
+import           Data.Char
+import           Data.List
+import           Data.Ord
+import           Exp
 
 freeVars :: Exp -> [Var]
 freeVars (Num a) = []
@@ -31,28 +31,28 @@ freeVars (App term1 term2) = union (freeVars term1) (freeVars term2)
 freeVars _ = []
 
 allVars :: Exp -> [Var]
-allVars (Minus a b) = (allVars a) `union` (allVars b)
-allVars (Num a) = []
-allVars (Plus a b) = (allVars a) `union` (allVars b)
-allVars (While guard prog) = (allVars guard) `union` (allVars prog)
-allVars (Fix t) = allVars t
-allVars (EqualsInt t1 t2) = (allVars t1) `union` (allVars t2)
-allVars (Ref t) = allVars t
-allVars (Assign t1 t2) = (allVars t1) `union` (allVars t2)
-allVars (Deref t) = allVars t
-allVars (Let x t1 t2) = (allVars t2) `union` [x] `union` (allVars t1)
-allVars (Seq t1 t2) = allVars t1 `union` allVars t2
-allVars Unit = []
-allVars Tru = []
-allVars Fls = []
+allVars (Minus a b)          = (allVars a) `union` (allVars b)
+allVars (Num a)              = []
+allVars (Plus a b)           = (allVars a) `union` (allVars b)
+allVars (While guard prog)   = (allVars guard) `union` (allVars prog)
+allVars (Fix t)              = allVars t
+allVars (EqualsInt t1 t2)    = (allVars t1) `union` (allVars t2)
+allVars (Ref t)              = allVars t
+allVars (Assign t1 t2)       = (allVars t1) `union` (allVars t2)
+allVars (Deref t)            = allVars t
+allVars (Let x t1 t2)        = (allVars t2) `union` [x] `union` (allVars t1)
+allVars (Seq t1 t2)          = allVars t1 `union` allVars t2
+allVars Unit                 = []
+allVars Tru                  = []
+allVars Fls                  = []
 allVars (IfThenElse t t1 t2) = allVars t `union` allVars t1 `union` allVars t2
-allVars (Succ t) = allVars t
-allVars (Pred t) = allVars t
-allVars (IsZero t) = allVars t
-allVars (Variable x) = [x]
-allVars (Lambda v tipo esp) = union (allVars esp) [v]
-allVars (App term1 term2) = union (allVars term1) (allVars term2)
-allVars _ = []
+allVars (Succ t)             = allVars t
+allVars (Pred t)             = allVars t
+allVars (IsZero t)           = allVars t
+allVars (Variable x)         = [x]
+allVars (Lambda v tipo esp)  = union (allVars esp) [v]
+allVars (App term1 term2)    = union (allVars term1) (allVars term2)
+allVars _                    = []
 
 subst :: Exp -> Exp -> Var -> Exp
 subst (Minus a b) t' y = (Minus (subst a t' y) (subst b t' y))
@@ -68,7 +68,8 @@ subst (Deref t) t' y = Deref (subst t t' y)
 subst (Let x t1 t2) t' y = if x==y then
                                     (Let x (subst t1 t' y) t2) else
                                if elem x (freeVars(t')) then
-                                  (Let (sumv (modulo (maximum set)) 1) (subst t1 t' y)  (subst (subst t2 (Variable (sumv (modulo (maximum set)) 1)) x )  t' y)) else
+                                  (Let (sumv (modulo (maximum set)) 1) (subst t1 t' y)  (subst (subst t2 (Variable (sumv (modulo (maximum set)) 1)) x )  t' y))
+                                  else
                                     (Let (x) (subst t1 t' y) (subst t2 t' y) )
                                  where set = union (freeVars t')(union (allVars (Variable x)) (allVars t2))
 subst (Seq t1 t2) t' x = Seq (subst t1 t' x) (subst t2 t' x)
@@ -81,27 +82,28 @@ subst (Pred t) t' x = Pred (subst t t' x)
 subst (IsZero t) t' x = IsZero (subst t t' x)
 subst (Variable (Var x)) t (Var y) = case x == y of
  True -> t
- _ -> (Variable (Var x))
+ _    -> (Variable (Var x))
 subst (Lambda (Var x) tipo t)  t_primo (Var y) = if x==y
                                          then (Lambda (Var x) tipo t) else
                                if elem (Var x) (freeVars(t_primo)) then
-                                  subst (Lambda (sumv (modulo (maximum set)) 1) tipo (subst t (Variable (sumv (modulo (maximum set)) 1)) (Var x) )) t_primo (Var y) else
-                                  (Lambda(Var x) tipo (subst t t_primo (Var y)))
+                                  subst (Lambda (sumv (modulo (maximum set)) 1) tipo (subst t (Variable (sumv (modulo (maximum set)) 1)) (Var x) )) t_primo (Var y)
+                                  else
+                                  (Lambda (Var x) tipo (subst t t_primo (Var y)))
                                  where set = union (freeVars t_primo)(allVars (Lambda (Var x) tipo t))
 
 subst (App t1 t2) t (Var x) = App (subst t1 t (Var x)) (subst t2 t (Var x))
 
 isVal:: Exp -> Bool
 isVal (Lambda (Var x) tipo t) = True
-isVal Tru = True
-isVal Fls = True
-isVal Unit = True
-isVal (Location(Loc _)) = True
-isVal t = isNum t
+isVal Tru                     = True
+isVal Fls                     = True
+isVal Unit                    = True
+isVal (Location(Loc _))       = True
+isVal t                       = isNum t
 
 isNum :: Exp -> Bool
 isNum (Num a) = True
-isNum _  = False
+isNum _       = False
 
 update_memory location value memory = if (lookup location memory) == Nothing then Memory (union [(location,value)] memory) else Memory (map (\(x,val) -> if x == location then (x,value) else (x,val)) memory)
 create_loc (Memory memory) value = let (locs,values) = unzip memory in if memory == [] then (Just(Location (Loc 0)),Memory [(0,value)])else (Just(Location (Loc ((maximum locs)+1))),Memory(memory++[((maximum locs)+1,value)]))
@@ -152,21 +154,21 @@ reduce (IfThenElse t t1 t2) memory = case reduce t memory of
 reduce (App (Lambda (Var x) tipo t) v) memory | isVal v = (Just (subst t v (Var x)),memory)
 reduce (App v t2) memory | isVal v = case reduce t2 memory of
                             (Just t,memory') -> (Just (App v t),memory')
-                            (_,memory') -> (Nothing,memory')
+                            (_,memory')      -> (Nothing,memory')
 reduce (App t1 t2) memory = case reduce t1 memory of
                             (Just t,memory') -> (Just (App t t2),memory')
-                            (_,memory') -> (Nothing,memory')
+                            (_,memory')      -> (Nothing,memory')
 
 reduce (Seq Unit t2) memory = (Just t2,memory)
 
 reduce (Seq t1 t2) memory = case reduce t1 memory of
                     (Just t1',memory') -> (Just (Seq t1' t2),memory')
-                    (_,memory') -> (Nothing,memory')
+                    (_,memory')        -> (Nothing,memory')
 
 reduce (Let x v t) memory | isVal v = (Just (subst t v x),memory)
 reduce (Let x t1 t2) memory = case reduce t1 memory of
                         (Just t1',memory') -> (Just (Let x t1' t2),memory')
-                        (Nothing,memory') -> (Nothing,memory')
+                        (Nothing,memory')  -> (Nothing,memory')
 
 reduce (Deref (Location (Loc x))) (Memory memory) = let res = lookup x memory in case res of
                                                             Just x -> (Just x,Memory memory)
@@ -186,10 +188,10 @@ reduce (Assign t1 t2) memory = case reduce t1 memory of
 reduce (Ref v) memory | isVal v = create_loc memory v
 reduce (Ref t) memory = case reduce t memory of
                               (Just t',memory') -> (Just (Ref t'),memory')
-                              (_,memory') -> (Nothing,memory')
+                              (_,memory')       -> (Nothing,memory')
 reduce _ memory = (Nothing,memory)
 
 reduceStar :: Exp -> Memory -> Exp
 reduceStar t memory = case reduce t memory of
            (Just x,memory) -> (reduceStar x memory)
-           (_,memory) -> t
+           (_,memory)      -> t

@@ -1,12 +1,12 @@
 module Parser
 
 where
-import Exp
-import Data.Char
-import Data.List
-import Data.Ord
-import Control.Applicative (Applicative(..))
-import Control.Monad       (liftM, ap)
+import           Control.Applicative (Applicative (..))
+import           Control.Monad       (ap, liftM)
+import           Data.Char
+import           Data.List
+import           Data.Ord
+import           Exp
 
 --prog = stmt (';' prog)?
 --stmt = var ':=' exp | 'let' var '=' stmt 'in'  prog | 'letrec' var tipo stmt in stmt | exp
@@ -44,7 +44,7 @@ item = Parser(\x -> if x == [] then [] else [((head x),(tail x))])
 (+++) :: Parser a -> Parser a -> Parser a
 p1+++p2 = Parser (\x -> case parse p1 x of
                           [] -> parse p2 x
-                          x -> x)
+                          x  -> x)
 
 myparser :: Parser (Char, Char)
 myparser = do
@@ -73,7 +73,7 @@ char c = sat (==c)
 string :: String -> Parser String
 string stringa =
    case stringa of
-    [] ->  return []
+    []   ->  return []
     x:xs -> do {c <- (char x);res <- string xs; return (c:res)}
 
 
@@ -172,17 +172,17 @@ applicationParse variables acc = do
                              (lambda,variables') <- stmtparse variables;
                              symbol ")";
                              return (lambda,variables')};
-        space
+        space;
         right <- applicationParse variables' (App acc res)+++return(App acc res,variables');
-        space
+        space;
         return right
 
 
 appParse :: [(String,Int)] -> Parser (Exp,[(String,Int)])
 appParse variables = do
     (name,variables') <- varparse variables+++do{symbol "(";(lambda,variables') <- stmtparse variables; symbol ")";return (lambda,variables')};
-    space
-    (res,variables'') <- applicationParse variables' name
+    space;
+    (res,variables'') <- applicationParse variables' name;
     return (res,variables'')
 
 devar (Variable (Var x)) = Var x
@@ -191,13 +191,9 @@ devar (Variable (Var x)) = Var x
 lambdaparse variables = do
     symbol "\\"
     (var,variables') <- varparse variables
-    symbol  ":"
-    symbol "("
-    tipo<- typeparse
-    symbol ")"
     symbol "->"
     (t,variables'') <- stmtparse variables'
-    return ((Lambda (devar var) (tipo) t),variables'')
+    return ((LambdaUntyped (devar var) t),variables'')
 
 -- allocparse :: [(String,Int)] -> Parser Exp
 allocparse variables = do
@@ -235,7 +231,7 @@ whileparse variables = do
 checkparse = Parser(\x ->
                     case x of
                         [] -> [(True,x)]
-                        _ -> [])
+                        _  -> [])
 
 sum_minusparse variables = do
     (a,variables') <- succParse variables
@@ -276,15 +272,21 @@ findFresh :: [(String,Int)] -> Int -> Int
 findFresh [] acc = acc
 findFresh ((name,x):xs) acc = if acc < x then findFresh xs (x+1) else if acc == x then findFresh xs (acc+1) else findFresh xs acc
 
+keywordParse :: Parser String
+keywordParse = symbol "true"+++symbol "false"+++symbol "let"+++symbol "if" +++ symbol "else" +++ symbol "while" +++ symbol "alloc" +++ symbol "in" +++ symbol "letrec" +++  symbol "fix" +++  symbol "pred" +++ symbol "succ" +++  symbol "iszero" +++   return []
+
+
 varparse :: [(String,Int)] -> Parser (Exp,[(String,Int)])
 varparse variables = do
-    name <- (many1(letter))+++return []
+    isKey <- keywordParse
+    if isKey /= [] then failure else do{
+    name <- (many1(letter))+++return [];
     if name /= [] then
         case lookup name variables of
                 (Just x) -> return ((Variable (Var (x))),variables)
                 _ -> return ((Variable (Var (findFresh variables 0))),variables++[(name,findFresh variables 0)])
 
-    else failure
+    else failure;}
 
 -- letrecparse :: [(String,Int)] -> Parser Exp
 letrecparse variables = do
@@ -303,7 +305,7 @@ letrecparse variables = do
 
 -- stmtparse :: [(String,Int)] -> Parser Exp
 stmtparse variables = do
-    (check,variables') <- assignparse variables+++letparser variables+++letrecparse variables+++expparse variables
+    (check,variables') <- letparser variables+++assignparse variables+++letrecparse variables+++expparse variables
     return (check,variables')
 
 -- letparser :: [(String,Int)] -> Parser Exp
@@ -318,7 +320,6 @@ letparser variables = do
 
 -- progparse :: [(String,Int)] -> Parser Exp
 progparse variables = do
-   return (Num 1,[])
    (esp,variables') <- stmtparse variables
    punto_e_virgola <- symbol ";"+++return []
    if punto_e_virgola == ";" then do{(t2,variables'') <- progparse variables'; return ((Seq esp t2),variables'') } else return (esp,variables')
@@ -326,7 +327,7 @@ progparse variables = do
 firstparse :: Parser Exp
 firstparse = do
     (res,variables) <- progparse []
-    checkparse
+    --checkparse
     return res
 
 -- valueparse :: [(String,Int)] -> Parser Exp

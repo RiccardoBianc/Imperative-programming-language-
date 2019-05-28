@@ -1,13 +1,13 @@
 module Imperative
 
 where
-import Exp
-import Parser
-import Typechecker
-import Reducer
-import System.IO
-import Control.Monad
-import Inference
+import           Control.Monad
+import           Exp
+import           Inference
+import           Parser
+import           Reducer
+import           System.IO
+import           Typechecker
 
 shell :: IO String
 shell = do
@@ -34,7 +34,8 @@ lettura filename = do
     res <- readFile filename
     case  (parse (firstparse) (filter (/='\n') res) ) of
                         [] -> return ("Errore di parsing")
-                        (parsed,""):xs -> case typeof parsed (Context []) (AssignType []) of
-                                            Just _ -> return(show(reduceStar parsed (Memory [])))
-                                            _ -> return("Errore di tipo")
+                        (parsed,""):xs -> case costraint 0 (ContextInference []) parsed of
+                                (_,costraints,_) -> if (unify costraints)
+                                    then return(show(reduceStar parsed (Memory [])))
+                                    else return("Errore di tipo")
                         (parsed,remaining):xs -> return("Parsing non terminato"++remaining++"-----"++(show parsed))

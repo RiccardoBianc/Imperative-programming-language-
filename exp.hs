@@ -3,7 +3,7 @@ module Exp
 where
 
 
-data TypeVariable = VarT Int | Type Types | FunType TypeVariable TypeVariable deriving(Eq,Show,Ord)
+data TypeVariable = VarT Int | Type Types | FunType TypeVariable TypeVariable | RefType TypeVariable deriving(Eq,Show,Ord)
 data Costraint = Costraint TypeVariable TypeVariable deriving(Eq,Show,Ord)
 data ContextInference = ContextInference [(Int,TypeVariable)] deriving(Show,Eq,Ord)
 data Loc = Loc Int deriving (Show,Eq,Ord)

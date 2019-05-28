@@ -21,6 +21,20 @@ replaceVariable variable new_type (ContextInference context) = if (lookup variab
 
 costraint :: Int -> ContextInference -> Exp -> (Int,[Costraint],TypeVariable)
 
+costraint typevariables context ()
+
+costraint typevariables context (Let (Var x) t1 t2) = case (costraint typevariables context t1) of
+                                                        (fresht1,c1,tipot1) ->
+                                                            let context' = replaceVariable x tipot1 context in
+                                                            case (costraint fresht1 context' t2) of
+                                                            (fresht2,c2,tipot2) ->
+                                                                (fresht2,c1++c2,tipot2)
+
+costraint typevariables context (Seq t1 t2) = case (costraint typevariables context t1) of
+                                                (fresht1,c1,tipot1) ->
+                                                    case (costraint fresht1 context t2) of
+                                                        (fresht2,c2,tipot2) -> (typevariables,c1++c2++[Costraint tipot1 (Type Unita)],tipot2)
+
 costraint typevariables context (App t1 t2) = case (costraint typevariables context t1) of
                                                 (fresht1,c1,tipot1) ->
                                                     case (costraint fresht1 context t2) of
@@ -58,30 +72,39 @@ costraint typevariables context (IfThenElse t t1 t2) =
                     (fresht2,c2,tipot2) -> (fresht2,c ++ c1 ++ c2 ++ [Costraint tipot (Type Boolean),Costraint tipot1 tipot2],tipot1 )
 
 belongs :: TypeVariable -> TypeVariable -> Bool
-belongs (VarT x) (VarT t) = x==t
-belongs (VarT x) (Type s) = False
-belongs (VarT x) (Fun t1 t2) = or (belongs (VarT x) t1)(belongs (VarT x) t2)
+belongs (VarT x) (VarT t)    = x==t
+belongs (VarT x) (Type s)    = False
+belongs (VarT x) (FunType t1 t2) = (belongs (VarT x) t1) || (belongs (VarT x) t2)
 
-type MapSub = [(TypeVariable,Types)]
 
-sigma :: MapSub -> TypeVariable -> TypeVariable
-sigma subst (VarT x) = case lookup (VarT x) subst of
-                        Just t -> Types t
-                        Nothing -> (VartT x)
-sigma _ (Integer) = Integer
-sigma _ (Boolean) = Boolean
-sigma _ (Fun t1 t2) = Fun (sigma t1) (sigma t2)
+sigma :: Unificator -> TypeVariable -> TypeVariable
+sigma (Un subst) (VarT x) = case lookup (VarT x) subst of
+                        Just t  -> t
+                        Nothing -> (VarT x)
+sigma u (Type Integer) = Type Integer
+sigma u (Type Boolean) = Type Boolean
+sigma u (FunType t1 t2) = FunType (sigma u t1) (sigma u t2)
 
-composition sigma1 sigma2 variable = let t = sigma sigma2 variable in
-                                        case t of
-                                            Types t -> sigma sigma1 t
-                                            x -> sigma sigma1 x
+data Unificator = Un [(TypeVariable,TypeVariable)]
 
-substCostraint () ((Costraint a b):t) = 
+applied :: Unificator -> [Costraint] -> [Costraint]
+applied _ [] = []
+applied u ((Costraint a b):ctail) = [Costraint (sigma u a) (sigma u b)]++(applied u ctail)
+
+-- compose :: Unificator -> Unificator -> Unificator
+-- compose (Un []) (Un []) = Un []
+-- compose (Un (sigma:s')) (Un (gamma:g')) =
 
 unify :: [Costraint] -> Bool
 unify [] = True
-unify ((Costraint s t):c) = case (s,t) of
-                           (Type s,Type x) | s==x -> unify(c)
-                           (VarT s,t') | not (belong s t') -> unify ()
-                           (s,VarT x) | not  (belong s x) ->
+unify ((Costraint s' t):c) = case (s',t) of
+                           (s,x) | s==x                            -> unify(c)
+                           (VarT s,t') | not (belongs (VarT s) t') -> let xtc = applied (Un [((VarT s),t')]) c in
+                                                                      let new_sigma = unify xtc in
+                                                                      new_sigma
+                           (s,VarT x) | not  (belongs (VarT x) s) -> let xtc = applied (Un [((VarT x),s)]) c in
+                                                                      let new_sigma = unify xtc in
+                                                                      new_sigma
+                           (FunType s1 s2,FunType t1 t2) -> unify (c++[Costraint s2 t2]++[Costraint s1 t1])
+                           (RefType s,RefType t') -> unify(c++[Costraint s t'])
+                           _ -> False
