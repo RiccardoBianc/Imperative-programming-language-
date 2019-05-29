@@ -17,15 +17,14 @@ data Exp =  Fls
           | IfThenElse Exp Exp Exp
           | Variable Var
           | LambdaUntyped Var Exp
-          | Lambda2 Var TypeVariable Exp
-          | Lambda Var Types Exp
+          | Lambda Var TypeVariable Exp
           | App Exp Exp
           | Seq Exp Exp
           | Let Var Exp Exp
           | Assign Exp Exp
           | Ref Exp
           | Deref Exp
-          | EqualsInt Exp Exp
+          | Equal Exp Exp
           | Fix Exp
           | While Exp Exp
           | Plus Exp Exp

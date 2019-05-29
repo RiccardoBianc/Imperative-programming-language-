@@ -12,7 +12,7 @@ freeVars (Minus a b) = (freeVars a) `union` (freeVars b)
 freeVars (Plus a b) = (freeVars a) `union` (freeVars b)
 freeVars (While guard prog) = (freeVars guard) `union` (freeVars prog)
 freeVars (Fix t) = freeVars t
-freeVars (EqualsInt t1 t2) = (freeVars t1) `union` (freeVars t2)
+freeVars (Equal t1 t2) = (freeVars t1) `union` (freeVars t2)
 freeVars (Ref t) = freeVars t
 freeVars (Assign t1 t2) = freeVars t1 `union` freeVars t2
 freeVars (Deref t) = freeVars t
@@ -27,6 +27,7 @@ freeVars (Pred t) = freeVars t
 freeVars (IsZero t) = freeVars t
 freeVars (Variable x) = [x]
 freeVars (Lambda v tipo esp) = (freeVars esp) \\ [v]
+freeVars (LambdaUntyped v esp) = (freeVars esp) \\ [v]
 freeVars (App term1 term2) = union (freeVars term1) (freeVars term2)
 freeVars _ = []
 
@@ -36,7 +37,7 @@ allVars (Num a)              = []
 allVars (Plus a b)           = (allVars a) `union` (allVars b)
 allVars (While guard prog)   = (allVars guard) `union` (allVars prog)
 allVars (Fix t)              = allVars t
-allVars (EqualsInt t1 t2)    = (allVars t1) `union` (allVars t2)
+allVars (Equal t1 t2)        = (allVars t1) `union` (allVars t2)
 allVars (Ref t)              = allVars t
 allVars (Assign t1 t2)       = (allVars t1) `union` (allVars t2)
 allVars (Deref t)            = allVars t
@@ -51,6 +52,7 @@ allVars (Pred t)             = allVars t
 allVars (IsZero t)           = allVars t
 allVars (Variable x)         = [x]
 allVars (Lambda v tipo esp)  = union (allVars esp) [v]
+allVars (LambdaUntyped v esp)  = union (allVars esp) [v]
 allVars (App term1 term2)    = union (allVars term1) (allVars term2)
 allVars _                    = []
 
@@ -60,7 +62,7 @@ subst (Num a) _ _ = (Num a)
 subst (Plus a b) t' y = (Plus (subst a t' y) (subst b t' y))
 subst (While guard prog) t' y = (While (subst guard t' y) (subst prog t' y))
 subst (Fix t) t' y = (Fix (subst t t' y))
-subst (EqualsInt t1 t2) t' y = (EqualsInt (subst t1 t' y) (subst t2 t' y) )
+subst (Equal t1 t2) t' y = (Equal (subst t1 t' y) (subst t2 t' y) )
 subst (Location (Loc x)) _ _ = (Location (Loc x))
 subst (Ref t) t' y = Ref (subst t t' y)
 subst (Assign t1 t2) t' y = Assign (subst t1 t' y) (subst t2 t' y)
@@ -81,25 +83,34 @@ subst (Succ t) t' x = Succ (subst t t' x)
 subst (Pred t) t' x = Pred (subst t t' x)
 subst (IsZero t) t' x = IsZero (subst t t' x)
 subst (Variable (Var x)) t (Var y) = case x == y of
- True -> t
- _    -> (Variable (Var x))
+                                                             True -> t
+                                                             _    -> (Variable (Var x))
 subst (Lambda (Var x) tipo t)  t_primo (Var y) = if x==y
-                                         then (Lambda (Var x) tipo t) else
+                                      then (Lambda (Var x) tipo t) else
+                            if elem (Var x) (freeVars(t_primo)) then
+                               subst (Lambda (sumv (modulo (maximum set)) 1) tipo (subst t (Variable (sumv (modulo (maximum set)) 1)) (Var x) )) t_primo (Var y)
+                               else
+                               (Lambda (Var x) tipo (subst t t_primo (Var y)))
+                              where set = union (freeVars t_primo)(allVars (Lambda (Var x) tipo t))
+
+subst (LambdaUntyped (Var x) t)  t_primo (Var y) = if x==y
+                                         then (LambdaUntyped (Var x) t) else
                                if elem (Var x) (freeVars(t_primo)) then
-                                  subst (Lambda (sumv (modulo (maximum set)) 1) tipo (subst t (Variable (sumv (modulo (maximum set)) 1)) (Var x) )) t_primo (Var y)
+                                  subst (LambdaUntyped (sumv (modulo (maximum set)) 1) (subst t (Variable (sumv (modulo (maximum set)) 1)) (Var x) )) t_primo (Var y)
                                   else
-                                  (Lambda (Var x) tipo (subst t t_primo (Var y)))
-                                 where set = union (freeVars t_primo)(allVars (Lambda (Var x) tipo t))
+                                  (LambdaUntyped (Var x) (subst t t_primo (Var y)))
+                                 where set = union (freeVars t_primo)(allVars (LambdaUntyped (Var x) t))
 
 subst (App t1 t2) t (Var x) = App (subst t1 t (Var x)) (subst t2 t (Var x))
 
 isVal:: Exp -> Bool
-isVal (Lambda (Var x) tipo t) = True
-isVal Tru                     = True
-isVal Fls                     = True
-isVal Unit                    = True
-isVal (Location(Loc _))       = True
-isVal t                       = isNum t
+isVal (LambdaUntyped (Var x) t) = True
+isVal (Lambda (Var x) tipo t)   = True
+isVal Tru                       = True
+isVal Fls                       = True
+isVal Unit                      = True
+isVal (Location(Loc _))         = True
+isVal t                         = isNum t
 
 isNum :: Exp -> Bool
 isNum (Num a) = True
@@ -124,15 +135,24 @@ reduce (Plus t t1) memory = case reduce t memory of
                                   (Just t',memory) -> (Just (Plus t' t1),memory)
                                   _ -> (Nothing,memory)
 reduce (While guard prog) memory = (Just (IfThenElse guard (Seq prog (While guard prog))       Unit),memory)
-reduce (Fix ((Lambda (Var x) tipo t))) memory = (Just (subst t (Fix ((Lambda (Var x) tipo t))) (Var x)),memory)
+reduce (Fix ((LambdaUntyped (Var x) t))) memory = (Just (subst t (Fix ((LambdaUntyped (Var x) t))) (Var x)),memory)
 reduce (Fix t) memory = case reduce t memory of
   (Just t',memory') -> (Just (Fix t'),memory')
   (_,memory')       -> (Nothing,memory')
-reduce (EqualsInt (Num a) (Num b) ) memory = if a==b then (Just (Tru),memory) else (Just Fls,memory)
-reduce (EqualsInt (Num a) t2 ) memory = case reduce t2 memory of
-                                            (Just t2',memory') ->  (Just((EqualsInt (Num a) t2')),memory')
-reduce (EqualsInt t1 t2 ) memory = case reduce t1 memory of
-                                            (Just t1',memory') ->  (Just((EqualsInt t1' t2)),memory')
+reduce (Equal Tru Fls) memory = (Just Fls,memory)
+reduce (Equal Fls Tru) memory = (Just Fls,memory)
+reduce (Equal Fls Fls) memory = (Just Tru,memory)
+reduce (Equal Tru Tru) memory = (Just Tru,memory)
+reduce (Equal Tru a) memory =  case reduce a memory of
+                                            (Just a',memory') ->  (Just((Equal Tru a')),memory')
+reduce (Equal Fls a) memory = case reduce a memory of
+                                            (Just a',memory') ->  (Just((Equal Fls a')),memory')
+
+reduce (Equal (Num a) (Num b) ) memory = if a==b then (Just (Tru),memory) else (Just Fls,memory)
+reduce (Equal (Num a) t2 ) memory = case reduce t2 memory of
+                                            (Just t2',memory') ->  (Just((Equal (Num a) t2')),memory')
+reduce (Equal t1 t2 ) memory = case reduce t1 memory of
+                                            (Just t1',memory') ->  (Just((Equal t1' t2)),memory')
 
 reduce (Succ (Num a)) memory = (Just (Num (a+1)),memory)
 reduce (Succ t) memory = case reduce t memory of
@@ -151,6 +171,7 @@ reduce (IfThenElse Fls t1 t2) memory = (Just t2,memory)
 reduce (IfThenElse t t1 t2) memory = case reduce t memory of
                                 (Just t',memory') -> (Just (IfThenElse t' t1 t2),memory')
                                 (_,memory')-> (Nothing,memory')
+reduce (App (LambdaUntyped (Var x) t) v) memory | isVal v = (Just (subst t v (Var x)),memory)
 reduce (App (Lambda (Var x) tipo t) v) memory | isVal v = (Just (subst t v (Var x)),memory)
 reduce (App v t2) memory | isVal v = case reduce t2 memory of
                             (Just t,memory') -> (Just (App v t),memory')

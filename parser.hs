@@ -152,14 +152,34 @@ isparseNUM variables = do
     (t,variables') <- expparse variables
     return ((IsZero t),variables')
 
-typeparse:: Parser Types
-typeparse = do
+vartypeparse ::  [(String,Int)] -> Parser (TypeVariable,[(String,Int)])
+vartypeparse variables = do
+        isKey <- keywordParse
+        if isKey /= [] then failure else do{
+        name <- (many1(letter))+++return [];
+        if name /= [] then
+            case lookup name variables of
+                    (Just x) -> return (VarT x,variables)
+                    _ -> return (VarT (findFresh variables 0),variables++[(name,findFresh variables 0)])
+
+        else failure;}
+
+booltypeparse variables = do
+    symbol "bool"
+    return (Type Boolean,variables)
+
+inttypeparse variables = do
+    symbol "int"
+    return (Type Integer,variables)
+
+typeparse:: [(String,Int)] -> Parser (TypeVariable,[(String,Int)])
+typeparse variables = do
     space
-    tipo <- string "bool"+++string "int"
+    (tipo,variables') <- booltypeparse variables +++inttypeparse variables+++vartypeparse variables
     isFunction <- symbol "->"+++return []
     if isFunction == "->" then
-        do{remaining <- typeparse; if tipo=="bool" then return (Fun Boolean remaining) else return (Fun Integer remaining) }
-    else (if tipo == "bool" then do{return Boolean} else do{return Integer})
+        do{(remaining,variables'') <- typeparse variables'; return ((FunType tipo remaining),variables'')}
+    else do{return (tipo,variables')}
 
 applicationParse :: [(String,Int)] -> Exp -> Parser (Exp,[(String,Int)])
 applicationParse variables acc = do
@@ -252,7 +272,7 @@ equalparse variables = do
     if check == [] then return (t1,variables') else
         do{
         (t2,variables'') <- ifParse variables'+++allocparse variables'+++derefparse variables'+++sum_minusparse variables';
-        return ((EqualsInt t1 t2),variables'')}
+        return ((Equal t1 t2),variables'')}
 
 -- fixparse :: [(String,Int)] -> Parser Exp
 fixparse variables = do
@@ -292,15 +312,11 @@ varparse variables = do
 letrecparse variables = do
     symbol "letrec"
     (x,variables') <- varparse variables
-    symbol ":"
-    symbol "("
-    tipo <- typeparse
-    symbol ")"
     symbol "="
     (t1,variables'') <- stmtparse variables'
     symbol "in"
     (t2,variables''') <- stmtparse variables''
-    return ((Let (devar x) (Fix (Lambda (devar x) tipo t1 ) ) t2),variables'')
+    return ((Let (devar x) (Fix (LambdaUntyped (devar x)  t1 ) ) t2),variables'')
 
 
 -- stmtparse :: [(String,Int)] -> Parser Exp
@@ -329,8 +345,18 @@ firstparse = do
     (res,variables) <- progparse []
     --checkparse
     return res
+lambdatypedparse variables = do
+    symbol "\\"
+    (var,variables') <- varparse variables
+    symbol ":"
+    symbol "("
+    (typevar,variables'') <- typeparse variables'
+    symbol ")"
+    symbol "->"
+    (t,variables''') <- stmtparse variables''
+    return ((Lambda (devar var) typevar t),variables''')
 
 -- valueparse :: [(String,Int)] -> Parser Exp
 valueparse variables = do
-    (t,variables') <- appParse variables+++lambdaparse variables+++trueParse variables+++falseParse variables+++parseNUM variables+++parenthesisparser variables+++varparse variables
+    (t,variables') <- appParse variables+++lambdatypedparse variables+++lambdaparse variables+++trueParse variables+++falseParse variables+++parseNUM variables+++parenthesisparser variables+++varparse variables
     return (t,variables')
