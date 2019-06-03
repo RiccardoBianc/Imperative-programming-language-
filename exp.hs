@@ -1,11 +1,28 @@
 module Exp
 
 where
+import           Data.Char
 
+instance Show Types where
+    show (Integer)         = "Int"
+    show (Boolean)         = "Bool"
+    show (Unita)           = "Unit"
+    show (Fun (Fun a b) c) =  "("++show (Fun a b)++") -> "++show c
+    show (Fun a b)         = show a++" -> "++show b
+    show (TypeRef x)       = "Ref "++show x
 
-data TypeVariable = VarT Int | Type Types | FunType TypeVariable TypeVariable | RefType TypeVariable deriving(Eq,Show,Ord)
+instance Show TypeVariable where
+  show (VarT x)                  = show (chr (x+97))
+  show (Type x)                  =  show x
+  show (FunType (FunType a b) c) =  "("++show (FunType a b)++") -> "++show c
+  show (FunType a b)             = show a++" -> "++show b
+  show (RefType x)               = "Ref "++show x
+
+data Parser a = Parser (String -> [(a,String)])
+data TypeVariable = VarT Int | Type Types | FunType TypeVariable TypeVariable | RefType TypeVariable deriving(Eq,Ord)
 data Costraint = Costraint TypeVariable TypeVariable deriving(Eq,Show,Ord)
-data ContextInference = ContextInference [(Int,TypeVariable)] deriving(Show,Eq,Ord)
+data ContextInference = ContextInference  [(Int,TypeVariable)] deriving(Show,Eq,Ord)
+data TypeScheme = Scheme [TypeVariable] TypeVariable
 data Loc = Loc Int deriving (Show,Eq,Ord)
 data Var = Var Int deriving (Show,Eq,Ord)
 data Exp =  Fls
@@ -32,7 +49,7 @@ data Exp =  Fls
           | Minus Exp Exp
           | Location Loc deriving(Show,Eq,Ord)
 
-data Types = Unita | Boolean | Integer | Fun Types Types | TypeRef Types deriving (Show,Eq,Ord)
+data Types = Unita | Boolean | Integer | Fun Types Types | TypeRef Types deriving (Eq,Ord)
 data Context = Context [(Int,Types)]
 data Memory = Memory [(Int,Exp)] deriving (Show)
 data AssignType = AssignType [(Int,Types)]

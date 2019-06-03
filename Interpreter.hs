@@ -25,11 +25,23 @@ interpreter program = do
                 case  (parse (firstparse) (filter (/='\n') program) ) of
                                     [] -> return ("Errore di parsing")
                                     (parsed,""):xs -> case costraint 0 (ContextInference []) parsed of
-                                            Just (_,costraints,_) -> if (unify costraints)
+                                            Right (_,costraints,_) -> if (unify costraints)/= Nothing
                                                 then return(show(reduceStar parsed (Memory [])))
                                                 else return("Errore di tipo")
-                                            Nothing -> return "Impossibile trovare vincoli, impossibile tipare"
+                                            Left e -> return e
                                     (parsed,remaining):xs -> return("Parsing non terminato"++remaining++"-----"++(show parsed))
+parsa filename = do
+    res <- readFile filename
+    return (parse firstparse res)
+
+unifica filename = do
+    res <- readFile filename
+    case  (parse (firstparse) (filter (/='\n') res) ) of
+                        [] -> return ("Errore di parsing")
+                        (parsed,""):xs -> case costraint 0 (ContextInference []) parsed of
+                                Right (_,costraints,tipo) -> return ("sigma"++show (unify costraints)++"----tipo   "++show tipo++"****"++(show (unify (costraints)))++"****0"++(show (foundPrincipalType (unify (costraints)) tipo ) ))
+                                Left s -> return s
+                        (parsed,remaining):xs -> return("Parsing non terminato"++remaining++"-----"++(show parsed))
 
 lettura :: String -> IO String
 lettura filename = do
@@ -37,8 +49,8 @@ lettura filename = do
     case  (parse (firstparse) (filter (/='\n') res) ) of
                         [] -> return ("Errore di parsing")
                         (parsed,""):xs -> case costraint 0 (ContextInference []) parsed of
-                                Just (_,costraints,_) -> if (unify costraints)
-                                    then return(show(reduceStar parsed (Memory [])))
-                                    else return("Errore di tipo")
-                                Nothing -> return "Impossibile trovare vincoli, impossibile tipare"
+                                Right (_,costraints,_) -> if (unify costraints) /= Nothing
+                                    then return(show(reduceStar parsed (Memory []))++ show costraints)
+                                    else return ("Impossibile unificare, impossibile tipare"++(show costraints))
+                                Left s -> return s
                         (parsed,remaining):xs -> return("Parsing non terminato"++remaining++"-----"++(show parsed))

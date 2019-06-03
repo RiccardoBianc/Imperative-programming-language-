@@ -1,1 +1,1 @@
-letrec id = \ x ->  in id 4
+let res =(\f -> \g -> \x -> f (f (g x))) in res

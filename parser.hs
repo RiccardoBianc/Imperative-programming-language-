@@ -18,7 +18,7 @@ import           Exp
 --lambda = '\\' var ':(' tipo ')' '->' stmt
 --values = lambda | 'true' | 'false' | NUM | var | '(' stmt ')' | var stmt | (lambda) stmt
 
-data Parser a = Parser (String -> [(a,String)])
+--type DictionaryVariables = [(String,Int)]
 
 parse :: Parser a -> String -> [(a, String)]
 parse (Parser s) stringa = s stringa
@@ -282,7 +282,7 @@ fixparse variables = do
 
 -- assignparse :: [(String,Int)] -> Parser Exp
 assignparse variables = do
-    (var,variables') <- varparse variables
+    (var,variables') <- varparse variables+++do{symbol "(";(res,variables')<-stmtparse variables;symbol ")";return (res,variables')}
     symbol ":="
     (t2,variables'') <- expparse variables'
     return ((Assign var t2),variables'')
@@ -315,7 +315,7 @@ letrecparse variables = do
     symbol "="
     (t1,variables'') <- stmtparse variables'
     symbol "in"
-    (t2,variables''') <- stmtparse variables''
+    (t2,variables''') <- progparse variables''
     return ((Let (devar x) (Fix (LambdaUntyped (devar x)  t1 ) ) t2),variables'')
 
 
