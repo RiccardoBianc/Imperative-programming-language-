@@ -18,7 +18,7 @@ instance Show TypeVariable where
   show (FunType a b)             = show a++" -> "++show b
   show (RefType x)               = "Ref "++show x
 
-data Parser a = Parser (String -> [(a,String)])
+data Parser a = Parser (String -> [(String,Int)] -> [(a,String,[(String,Int)])])
 data TypeVariable = VarT Int | Type Types | FunType TypeVariable TypeVariable | RefType TypeVariable deriving(Eq,Ord)
 data Costraint = Costraint TypeVariable TypeVariable deriving(Eq,Show,Ord)
 data ContextInference = ContextInference  [(Int,TypeVariable)] deriving(Show,Eq,Ord)
