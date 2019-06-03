@@ -12,7 +12,6 @@ freeVars (Minus a b) = (freeVars a) `union` (freeVars b)
 freeVars (Plus a b) = (freeVars a) `union` (freeVars b)
 freeVars (While guard prog) = (freeVars guard) `union` (freeVars prog)
 freeVars (Fix t) = freeVars t
-freeVars (Equal t1 t2) = (freeVars t1) `union` (freeVars t2)
 freeVars (Ref t) = freeVars t
 freeVars (Assign t1 t2) = freeVars t1 `union` freeVars t2
 freeVars (Deref t) = freeVars t
@@ -37,7 +36,6 @@ allVars (Num a)              = []
 allVars (Plus a b)           = (allVars a) `union` (allVars b)
 allVars (While guard prog)   = (allVars guard) `union` (allVars prog)
 allVars (Fix t)              = allVars t
-allVars (Equal t1 t2)        = (allVars t1) `union` (allVars t2)
 allVars (Ref t)              = allVars t
 allVars (Assign t1 t2)       = (allVars t1) `union` (allVars t2)
 allVars (Deref t)            = allVars t
@@ -62,7 +60,6 @@ subst (Num a) _ _ = (Num a)
 subst (Plus a b) t' y = (Plus (subst a t' y) (subst b t' y))
 subst (While guard prog) t' y = (While (subst guard t' y) (subst prog t' y))
 subst (Fix t) t' y = (Fix (subst t t' y))
-subst (Equal t1 t2) t' y = (Equal (subst t1 t' y) (subst t2 t' y) )
 subst (Location (Loc x)) _ _ = (Location (Loc x))
 subst (Ref t) t' y = Ref (subst t t' y)
 subst (Assign t1 t2) t' y = Assign (subst t1 t' y) (subst t2 t' y)
@@ -139,21 +136,6 @@ reduce (Fix ((LambdaUntyped (Var x) t))) memory = (Just (subst t (Fix ((LambdaUn
 reduce (Fix t) memory = case reduce t memory of
   (Just t',memory') -> (Just (Fix t'),memory')
   (_,memory')       -> (Nothing,memory')
-reduce (Equal Tru Fls) memory = (Just Fls,memory)
-reduce (Equal Fls Tru) memory = (Just Fls,memory)
-reduce (Equal Fls Fls) memory = (Just Tru,memory)
-reduce (Equal Tru Tru) memory = (Just Tru,memory)
-reduce (Equal Tru a) memory =  case reduce a memory of
-                                            (Just a',memory') ->  (Just((Equal Tru a')),memory')
-reduce (Equal Fls a) memory = case reduce a memory of
-                                            (Just a',memory') ->  (Just((Equal Fls a')),memory')
-
-reduce (Equal (Num a) (Num b) ) memory = if a==b then (Just (Tru),memory) else (Just Fls,memory)
-reduce (Equal (Num a) t2 ) memory = case reduce t2 memory of
-                                            (Just t2',memory') ->  (Just((Equal (Num a) t2')),memory')
-reduce (Equal t1 t2 ) memory = case reduce t1 memory of
-                                            (Just t1',memory') ->  (Just((Equal t1' t2)),memory')
-
 reduce (Succ (Num a)) memory = (Just (Num (a+1)),memory)
 reduce (Succ t) memory = case reduce t memory of
   (Just t',memory') -> (Just (Succ t'),memory')

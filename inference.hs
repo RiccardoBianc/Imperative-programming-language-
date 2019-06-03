@@ -61,26 +61,26 @@ costraint typevariables context (Fix t) = case (costraint typevariables context 
                                                             Right ((fresht+1),c++[Costraint tipot (FunType x x) ],x)
                                                         Left e -> Left e
 
--- -- Let polymorphism, solo con valori per avere soundness dei reference
--- costraint typevariables context (Let (Var x) t1 t2) | isVal t1 = case (costraint typevariables context t1) of
---                                                         Right (fresht1,c1,tipot1) -> let sigma = unify c1 in
---                                                             let (t1_principal_type,context_applied) = (foundPrincipalType sigma tipot1,ContextInference (change_context context sigma)) in
---                                                             let variables_to_generalize = freev context_applied t1_principal_type in
---                                                             let scheme = Scheme variables_to_generalize t1_principal_type in
---                                                             case context_applied of
---                                                                 ContextInference a -> case (costraint fresht1 (ContextInference [((Var x),scheme)]++a)  t2) of
---                                                                     Right (fresht2,c2,tipot2) -> Right ((fresht2,c1++c2,tipot2))
---                                                                     Left e -> Left e
---
---                                                         Left e -> Left e
-
 -- Let polymorphism, solo con valori per avere soundness dei reference
 costraint typevariables context (Let (Var x) t1 t2) | isVal t1 = case (costraint typevariables context t1) of
                                                         Right (fresht1,c1,tipot1) -> let sigma = unify c1 in
-                                                            case (costraint fresht1 context (subst t2 t1 (Var x)) ) of
-                                                            Right (fresht2,c2,tipot2) -> Right ((fresht2,c1++c2,tipot2))
-                                                            Left e -> Left e
+                                                            let (t1_principal_type,context_applied) = (foundPrincipalType sigma tipot1,ContextInference (change_context context sigma)) in
+                                                            let variables_to_generalize = freev context_applied t1_principal_type in
+                                                            let scheme = Scheme variables_to_generalize t1_principal_type in
+                                                            case context_applied of
+                                                                ContextInference a -> case (costraint fresht1 (ContextInference [((Var x),scheme)]++a)  t2) of
+                                                                    Right (fresht2,c2,tipot2) -> Right ((fresht2,c1++c2,tipot2))
+                                                                    Left e -> Left e
+
                                                         Left e -> Left e
+
+-- -- Let polymorphism, solo con valori per avere soundness dei reference
+-- costraint typevariables context (Let (Var x) t1 t2) | isVal t1 = case (costraint typevariables context t1) of
+--                                                         Right (fresht1,c1,tipot1) -> let sigma = unify c1 in
+--                                                             case (costraint fresht1 context (subst t2 t1 (Var x)) ) of
+--                                                             Right (fresht2,c2,tipot2) -> Right ((fresht2,c1++c2,tipot2))
+--                                                             Left e -> Left e
+--                                                         Left e -> Left e
 --Let "normale"
 costraint typevariables context (Let (Var x) t1 t2) = case (costraint typevariables context t1) of
                                                     Right (fresht1,c1,tipot1) ->

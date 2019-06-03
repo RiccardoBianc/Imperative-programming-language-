@@ -41,7 +41,6 @@ data Exp =  Fls
           | Assign Exp Exp
           | Ref Exp
           | Deref Exp
-          | Equal Exp Exp
           | Fix Exp
           | While Exp Exp
           | Plus Exp Exp

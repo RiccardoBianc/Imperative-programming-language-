@@ -23,9 +23,6 @@ typeof (While guard prog) context sigma = case (typeof guard context sigma,typeo
 typeof (Fix t) context sigma = case typeof t context sigma of
                                 (Just (Fun a b)) | a==b -> Just a
                                 _                       -> Nothing
-typeof (Equal t1 t2) context sigma = case (typeof t1 context sigma,typeof t2 context sigma) of
-                                        (Just Integer,Just Integer) -> Just Boolean
-                                        _ -> Nothing
 typeof (Tru) _ _ = Just Boolean
 typeof (Fls) _ _ = Just Boolean
 typeof (Succ t) context sigma = case typeof t context sigma of

@@ -10,8 +10,7 @@ import           Exp
 
 --prog = stmt (';' prog)?
 --stmt = var ':=' exp | 'let' var '=' stmt 'in'  prog | 'letrec' var tipo stmt in stmt | exp
---exp =  'while' '(' equals ')' '{' prog '}'  | 'if' exp 'then' '{' stmt '}' 'else' '{' stmt '}' | 'alloc' exp | '*' exp | equals
---equals = sum '==' 'if' exp 'then' stmt  'else' stmt | sum '==' '*' exp | sum '==' sum | 'fix' sum | sum
+--exp =  'while' '(' equals ')' '{' prog '}'  | 'if' exp 'then' '{' stmt '}' 'else' '{' stmt '}' | 'alloc' exp | '*' exp | sum
 --sum = succ ('+' sum)* | succ ('-' sum)*
 --succ= 'pred' succ | 'iszero' succ | 'succ' succ | values
 --var = num
@@ -237,14 +236,14 @@ expparse = do
             allocparse+++
             derefparse+++
             whileparse+++
-            equalparse
+            sum_minusparse
     return expr
 
 whileparse :: Parser Exp
 whileparse = do
     symbol "while"
     symbol "("
-    guard<- equalparse
+    guard<- sum_minusparse
     symbol ")"
     symbol "{"
     prog <- progparse
@@ -262,15 +261,6 @@ sum_minusparse = do
             else return (Minus a b)
         }
 
-
-equalparse :: Parser Exp
-equalparse = do
-    t1<- fixparse+++sum_minusparse
-    check <- symbol "=="+++return []
-    if check == [] then return t1 else
-        do{
-        t2<- ifParse+++allocparse+++derefparse+++sum_minusparse;
-        return (Equal t1 t2)}
 
 fixparse :: Parser Exp
 fixparse = do
