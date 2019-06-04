@@ -1,1 +1,1 @@
-let res =(\f -> \g -> \x -> f (f (g x))) in res
+let id = \x -> x in if (iszero id true){id 5}else{id 10}

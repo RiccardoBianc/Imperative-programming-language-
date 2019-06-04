@@ -129,7 +129,7 @@ succParse = do
     op <- symbol "succ"+++symbol "iszero"+++symbol "pred"+++return []
     case op of
         "succ"   -> do{t <- succParse;return (Succ t)}
-        "iszero" -> do{t <- succParse;return(IsZero t)}
+        "iszero" -> do{t <- succParse;return (IsZero t)}
         "pred"   -> do{t <- succParse;return (Pred t)}
         _        -> do{v <- valueparse; return v}
 
@@ -167,10 +167,12 @@ vartypeparse = do
 
         else failure;}
 
+booltypeparse :: Parser TypeVariable
 booltypeparse = do
     symbol "bool"
     return (Type Boolean)
 
+inttypeparse :: Parser TypeVariable
 inttypeparse = do
     symbol "int"
     return (Type Integer)
