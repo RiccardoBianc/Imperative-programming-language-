@@ -83,12 +83,13 @@ costraint typevariables context (Fix t) = case (costraint typevariables context 
 costraint typevariables (ContextScheme context) (Let (Var x) t1 t2) | isVal t1 = case (costraint typevariables (ContextScheme context) t1) of
                                                                     Right (fresht1,c1,tipot1) -> let sigma = unify c1 in
                                                                         let t1_principal_type = foundPrincipalType sigma tipot1 in
-                                                                        let variables_to_generalize = generalize (ContextScheme context) t1_principal_type in
-                                                                        let scheme = Scheme variables_to_generalize t1_principal_type in
-                                                                        let new_context = ContextScheme ([(x,scheme)]++context) in
-                                                                        case costraint typevariables new_context t2 of
-                                                                            Right (a,b,c) -> Right (a,b++c1,c)
-                                                                            Left e -> Left e
+                                                                        case t1_principal_type of
+                                                                            Nothing -> Left "Errore nel tipo principale t1"
+                                                                            (Just t1_principal_type) ->    let scheme = generalize (ContextScheme context) t1_principal_type in
+                                                                                                            let new_context = ContextScheme ([(x,scheme)]++context) in
+                                                                                                            case costraint fresht1 new_context t2 of
+                                                                                                                Right (a,b,c) ->  Right (a,b,c)
+                                                                                                                Left e -> Left e
                                                                     Left e -> Left e
 
 -- -- Let polymorphism, solo con valori per avere soundness dei reference
@@ -120,9 +121,8 @@ costraint typevariables context (App t1 t2) = case (costraint typevariables cont
                                                         Right(fresht2,c2,tipot2) -> Right ((fresht2+1),c1++c2++[Costraint tipot1 (FunType tipot2 (VarT (fresht2))  )],VarT (fresht2))
                                                         Left e -> Left e
                                                Left e -> Left e
-costraint typevariables context (Lambda (Var x) type1 esp) = let t1 = case type1 of
-                                                                            VarT x -> VarT (-x-1)
-                                                                            x -> x in
+
+costraint typevariables context (Lambda (Var x) type1 esp) = let t1 = sub_var type1 in
                                                 let context' = replaceVariable x t1 context in
                                                 case costraint typevariables context' esp of
                                                     Right (fresh,costraint',t2) -> Right ((fresh,costraint',FunType t1 t2))
@@ -168,7 +168,12 @@ costraint typevariables context (IfThenElse t t1 t2) =
 type Unificator = [(TypeVariable,TypeVariable)]
 -- data ContextInference = ContextInference [(Int,TypeVariable)] deriving(Show,Eq,Ord)
 
+sub_var (VarT x)      = VarT (-x-1)
+sub_var (FunType a b) = FunType (sub_var a) (sub_var b)
+sub_var (RefType x)   = RefType (sub_var x)
+sub_var (Type x)      = Type x
 
+principal :: TypeVariable -> [TypeVariable]
 principal (VarT x)      = [(VarT x)]
 principal (FunType a b) = (principal a) ++ (principal b)
 principal (RefType x)   = principal x
@@ -189,10 +194,10 @@ instantiate new (x:l) t = let (t',new') = aux_instantiate new x t in instantiate
 
 aux_instantiate :: Int -> TypeVariable -> TypeVariable -> (TypeVariable,Int)
 aux_instantiate new (VarT x) (VarT v) | v==x = (VarT new,new+1)
-aux_instantiate new (VarT x) (VarT v) = (VarT v,new)
-aux_instantiate new forall (FunType a b) = let (a',_) = aux_instantiate new forall a in
+aux_instantiate new (VarT _) (VarT v) = (VarT v,new)
+aux_instantiate new forall (FunType a b) = let (a',newa) = aux_instantiate new forall a in
                                        let (b',newb) = aux_instantiate new forall b in
-                                       (FunType a' b',newb)
+                                       if newa > newb then (FunType a' b',newa) else (FunType a' b',newb)
 aux_instantiate new forall (RefType x) = let (x',newx) = aux_instantiate new forall x in
                                       (RefType x',newx)
 aux_instantiate new _ (Type x) = (Type x,new)
@@ -215,11 +220,11 @@ find_variables_context (ContextScheme [])                      = []
 find_variables_context (ContextScheme ((var,Scheme forall t):l)) = ((principal t) \\ forall) `union` (find_variables_context (ContextScheme l) )
 
 
-generalize :: ContextInference -> TypeVariable -> [TypeVariable]
+generalize :: ContextInference -> TypeVariable -> TypeScheme
 generalize (ContextScheme context_applied) t1_principal_type =
               let variablestype = principal t1_principal_type in
               let variables_context = find_variables_context (ContextScheme context_applied) in
-              let context_variables = vcontext context_applied in variablestype \\ variables_context
+              let context_variables = vcontext context_applied in Scheme (variablestype \\ variables_context) t1_principal_type
 
 -- freev :: ContextInference -> TypeVariable -> [TypeVariable]
 -- freev (ContextInference context_applied) t1_principal_type = let variablestype = principal t1_principal_type in
@@ -241,14 +246,18 @@ generalize (ContextScheme context_applied) t1_principal_type =
 --                                                      Just x ->  ((var,x):(change_context (ContextInference l) (Just un)))
 --                                                      Nothing -> ((var,tipo):(change_context (ContextInference l) (Just un)))
 
-foundPrincipalType :: Maybe Unificator -> TypeVariable -> TypeVariable
+foundPrincipalType :: Maybe Unificator -> TypeVariable -> Maybe TypeVariable
 foundPrincipalType (Just u) (VarT x) = case lookup (VarT x) u of
-                                            Just t -> foundPrincipalType (Just u) t
-                                            Nothing -> (VarT x)
-foundPrincipalType u (RefType x) = RefType (foundPrincipalType u x)
-foundPrincipalType _ (Type x) = Type x
-foundPrincipalType u (FunType a b) = FunType (foundPrincipalType u a ) (foundPrincipalType u b )
-
+                                            Just t  -> foundPrincipalType (Just u) t
+                                            Nothing -> Just (VarT x)
+foundPrincipalType u (RefType x) = case (foundPrincipalType u x) of
+                                            Just x -> Just (RefType x)
+                                            _      -> Nothing
+foundPrincipalType (Just _) (Type x) = Just (Type x)
+foundPrincipalType u (FunType a b) = case ((foundPrincipalType u a),(foundPrincipalType u b)) of
+                                        (Just a,Just b) -> Just (FunType a b)
+                                        _               -> Nothing
+foundPrincipalType Nothing _ = Nothing
 
 belongs :: TypeVariable -> TypeVariable -> Bool
 belongs (VarT x) (VarT t)    = x==t
@@ -282,9 +291,7 @@ applied u ((Costraint a b):ctail) = (Costraint (sigma u a) (sigma u b)):(applied
 unify :: [Costraint] -> Maybe Unificator
 unify [] = Just []
 unify ((Costraint s' t):c) = case (s',t) of
-                           (Type s,Type x) | s==x  -> unify(c)
-                           (VarT s,VarT t') |  s==t'-> unify(c)
-                           (VarT s,VarT t') |  s==t'-> unify(c)
+                           (s,t') | s==t' -> unify(c)
                            (VarT s,t') | not (belongs (VarT s) t') -> let xtc = applied [(VarT s,t')] c in
                                                                       let new_sigma = unify xtc in
                                                                       composition new_sigma new_sigma [(VarT s,t')]

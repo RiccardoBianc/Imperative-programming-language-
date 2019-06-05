@@ -30,17 +30,17 @@ import           Typechecker
 --                                                 else return("Errore di tipo")
 --                                             Left e -> return e
 --                                     (parsed,remaining):xs -> return("Parsing non terminato"++remaining++"-----"++(show parsed))
--- parsa filename = do
---     res <- readFile filename
---     return (parse firstparse res)
+parsa filename = do
+    res <- readFile filename
+    return (parse firstparse res)
 
 unifica filename = do
     res <- readFile filename
     case  (parse (firstparse) (filter (/='\n') res) ) of
                         [] -> return ("Errore di parsing")
                         (parsed,"",_):xs -> case costraint 0 (ContextScheme []) parsed of
-                                Right (_,costraints,tipo) -> return ("costraint: "++show (costraints)++"----tipo   "++show tipo++"****"++(show (foundPrincipalType (unify (costraints)) tipo ) ))
-                                Left s -> return s
+                                Right (_,costraints,tipo) -> return (show (unify (costraints)) ) {-("costraint: "++show (costraints)++"----tipo   "++show tipo++"****"++(show (foundPrincipalType (unify (costraints)) tipo ) ))-}
+                                Left s                    -> return s
                         (parsed,remaining,_):xs -> return("Parsing non terminato"++remaining++"-----"++(show parsed))
 
 lettura :: String -> IO String

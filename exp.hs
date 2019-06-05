@@ -20,8 +20,8 @@ instance Show TypeVariable where
 
 data Parser a = Parser (String -> [(String,Int)] -> [(a,String,[(String,Int)])])
 data TypeVariable = VarT Int | Type Types | FunType TypeVariable TypeVariable | RefType TypeVariable deriving(Eq,Ord)
-data Costraint = Costraint TypeVariable TypeVariable deriving(Eq,Show,Ord)
-data ContextInference = ContextScheme [(Int,TypeScheme)] | ContextInference  [(Int,TypeVariable)] deriving(Show,Eq,Ord)
+data Costraint = Costraint TypeVariable TypeVariable deriving(Show,Eq,Ord)
+data ContextInference = ContextScheme [(Int,TypeScheme)] | ContextInference  [(Int,TypeVariable)] deriving(Eq,Ord)
 data TypeScheme = Scheme [TypeVariable] TypeVariable deriving(Show,Eq,Ord)
 data Loc = Loc Int deriving (Show,Eq,Ord)
 data Var = Var Int deriving (Show,Eq,Ord)

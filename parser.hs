@@ -79,6 +79,7 @@ many1 p = do
    not_consumed <- many p
    return (res:not_consumed)
 
+space :: Parser String
 space = many (sat isSpace)
 
 symbol :: String -> Parser String
@@ -113,7 +114,7 @@ ifParse = do
 parseNUM :: Parser Exp
 parseNUM = do
      space
-     num <- (many(digit))+++failure
+     num <- (many1(digit))+++failure
      space
      if num /= [] then let x = (read num :: Int) in return (Num x) else failure
 
@@ -180,7 +181,12 @@ inttypeparse = do
 typeparse:: Parser (TypeVariable)
 typeparse = do
     space
-    tipo <- booltypeparse+++inttypeparse+++vartypeparse
+    tipo <- booltypeparse+++inttypeparse+++vartypeparse+++do{
+    symbol "(";
+    res <- typeparse;
+    symbol ")";
+    return res
+    }
     isFunction <- symbol "->"+++return []
     if isFunction == "->" then
         do{remaining <- typeparse; return(FunType tipo remaining)}
@@ -194,7 +200,7 @@ applicationParse acc = do
                 varparse+++
                 do{
                 symbol "(";
-                lambda <- stmtparse;
+                lambda <- lambdaparse+++lambdatypedparse;
                 symbol ")";
                 return lambda};
         space;
@@ -205,7 +211,7 @@ applicationParse acc = do
 
 appParse :: Parser Exp
 appParse = do
-    name <- varparse+++do{symbol "(";lambda <- stmtparse; symbol ")";return lambda};
+    name <- varparse+++do{symbol "(";lambda <- lambdaparse+++lambdatypedparse; symbol ")";return lambda};
     space;
     res <- applicationParse name;
     return res
@@ -283,7 +289,7 @@ findFresh [] acc = acc
 findFresh ((name,x):xs) acc = if acc < x then findFresh xs (x+1) else if acc == x then findFresh xs (acc+1) else findFresh xs acc
 
 keywordParse :: Parser String
-keywordParse = symbol "true"+++symbol "false"+++symbol "let"+++symbol "if" +++ symbol "else" +++ symbol "while" +++ symbol "alloc" +++ symbol "in" +++ symbol "letrec" +++  symbol "fix" +++  symbol "pred" +++ symbol "succ" +++  symbol "iszero" +++   return []
+keywordParse = symbol "true"+++symbol "false"+++symbol "let"+++symbol "if" +++ symbol "else" +++ symbol "while" +++ symbol "alloc" +++ symbol "in" +++ symbol "letrec" +++  symbol "fix" +++  symbol "pred" +++ symbol "succ" +++  symbol "iszero" +++return []
 
 
 varparse :: Parser Exp

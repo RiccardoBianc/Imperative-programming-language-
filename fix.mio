@@ -1,1 +1,1 @@
-let id = \x -> x in if (iszero id true){id 5}else{id 10}
+let id = \x -> x in if(id true){12}else{id 12}
