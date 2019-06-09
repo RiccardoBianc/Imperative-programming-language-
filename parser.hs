@@ -198,9 +198,18 @@ applicationParse acc = do
                 falseParse+++
                 parseNUM+++
                 varparse+++
+                derefparse+++
                 do{
                 symbol "(";
-                lambda <- lambdaparse+++lambdatypedparse;
+                lambda <- lambdaparse +++
+                          lambdatypedparse +++
+                          appParse +++
+                          trueParse +++
+                          falseParse +++
+                          parseNUM +++
+                          varparse+++
+                          derefparse
+                          ;
                 symbol ")";
                 return lambda};
         space;
@@ -211,7 +220,7 @@ applicationParse acc = do
 
 appParse :: Parser Exp
 appParse = do
-    name <- varparse+++do{symbol "(";lambda <- lambdaparse+++lambdatypedparse; symbol ")";return lambda};
+    name <- varparse+++do{symbol "(";lambda <- lambdaparse+++lambdatypedparse+++derefparse+++appParse; symbol ")";return lambda};
     space;
     res <- applicationParse name;
     return res
