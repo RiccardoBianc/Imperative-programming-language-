@@ -8,16 +8,15 @@ import           Data.List
 import           Data.Ord
 import           Exp
 
---prog = stmt (';' prog)?
---stmt = var ':=' exp | 'let' var '=' stmt 'in'  prog | 'letrec' var tipo stmt in stmt | exp
---exp =  'while' '(' equals ')' '{' prog '}'  | 'if' exp 'then' '{' stmt '}' 'else' '{' stmt '}' | 'alloc' exp | '*' exp | sum
---sum = succ ('+' sum)* | succ ('-' sum)*
---succ= 'pred' succ | 'iszero' succ | 'succ' succ | values
---var = num
---lambda = '\\' var ':(' tipo ')' '->' stmt
---values = lambda | 'true' | 'false' | NUM | var | '(' stmt ')' | var stmt | (lambda) stmt
-
---type DictionaryVariables = [(String,Int)]
+--prog = stmt (';' prog)*
+--stmt = 'while' '(' exp ')' '{' prog '}'  | variable ':=' exp | 'let' variable '=' stmt 'in' prog | 'letrec' variable tipo stmt in prog | exp
+--exp =  'if' '(' exp ')' '{' prog '}' 'else' '{' prog '}' | 'alloc' exp | '*' exp | sum
+--sum = value ('+' sum)* | value ('-' sum)* | 'pred' sum | 'iszero' sum | 'succ' sum | application
+--application = value application
+--value = '(' lambda ')' | 'true' | 'false' | NUM | variable | '(' stmt ')'
+--lambda = lambdatyped | lambdauntyped
+--lambdatyped = '\\' variable ':(' tipo ')' '->' exp
+--lambdauntyped = '\\' variable '->' stmt
 
 parse :: Parser a -> String -> [(a, String,[(String,Int)])]
 parse p s = parser p s []
@@ -89,6 +88,139 @@ symbol stringa = do
    space
    return res
 
+progparse :: Parser Exp
+progparse = do
+  esp <- stmtparse
+  punto_e_virgola <- symbol ";"+++return []
+  if punto_e_virgola == ";" then do{t2 <- progparse; return (Seq esp t2) } else return esp
+
+stmtparse :: Parser Exp
+stmtparse = do
+  check <- letparser+++letrecparse+++assignparse+++whileparse+++expparse
+  return check
+
+letparser :: Parser Exp
+letparser = do
+  symbol "let"
+  (Variable (Var x)) <- varparse
+  symbol "="
+  t1 <- stmtparse
+  symbol "in"
+  t2 <- progparse
+  return (Let (Var x) t1 t2 )
+
+letrecparse :: Parser Exp
+letrecparse = do
+  symbol "letrec"
+  (Variable (Var x)) <- varparse
+  symbol "="
+  t1 <- stmtparse
+  symbol "in"
+  t2 <- progparse
+  return (Let (Var x) (Fix (LambdaUntyped (Var x)  t1 ) ) t2)
+
+assignparse :: Parser Exp
+assignparse = do
+  var <- varparse +++ do{symbol "(";res<-stmtparse;symbol ")";return res}
+  symbol ":="
+  t2 <- expparse
+  return (Assign var t2)
+
+whileparse :: Parser Exp
+whileparse = do
+  symbol "while"
+  symbol "("
+  guard<- expparse
+  symbol ")"
+  symbol "{"
+  prog <- progparse
+  symbol "}"
+  return (While guard prog)
+
+expparse :: Parser Exp
+expparse = do
+  expr <- ifParse+++
+          allocparse+++
+          derefparse+++
+          fixparse+++
+          sumparse
+  return expr
+
+ifParse :: Parser Exp
+ifParse = do
+  symbol "if"
+  symbol "("
+  t <- expparse
+  symbol ")"
+  symbol "{"
+  t1 <- progparse
+  symbol "}"
+  symbol "else"
+  symbol "{"
+  t2 <- progparse
+  symbol "}"
+  return (IfThenElse t t1 t2)
+
+allocparse :: Parser Exp
+allocparse = do
+  symbol "alloc"
+  t <- expparse
+  return (Ref t)
+
+derefparse :: Parser Exp
+derefparse = do
+  symbol "*"
+  t <- expparse
+  return (Deref t)
+
+fixparse :: Parser Exp
+fixparse = do
+    symbol "fix"
+    t <- expparse
+    return (Fix t)
+
+sumparse :: Parser Exp
+sumparse = do
+  op <- symbol "succ"+++symbol "iszero"+++symbol "pred"+++return []
+  if op/= [] then case op of
+      "succ"   -> do{t <- sumparse;return (Succ t)}
+      "iszero" -> do{t <- sumparse;return (IsZero t)}
+      "pred"   -> do{t <- sumparse;return (Pred t)}
+  else do{
+  app <- applicationParse;
+  check <- symbol "+"+++symbol "-"+++return [];
+  if check == [] then return app else
+      case check of
+          "+" -> do{b <- sumparse;return (Plus app b)}
+          "-" -> do{b <- sumparse;return (Minus app b)}
+  }
+
+applicationParse :: Parser Exp
+applicationParse = do
+     res <- appParse+++valueparse
+     return res
+
+appParse :: Parser Exp
+appParse = do
+        name <- valueparse
+        space;
+        res <- leftAssociativeApp name;
+        return res
+
+
+leftAssociativeApp :: Exp -> Parser Exp
+leftAssociativeApp acc = do
+      res <-  valueparse
+      space;
+      right <- leftAssociativeApp (App acc res)+++return (App acc res);
+      space;
+      return right
+
+valueparse :: Parser Exp
+valueparse = do
+  t <- lambdatypedparse+++lambdaparse+++do{symbol "true";return Tru}+++do{symbol "false";return Fls}+++parseNUM+++parenthesisparser+++varparse
+  return t
+
 parenthesisparser :: Parser Exp
 parenthesisparser = do
     symbol "("
@@ -96,61 +228,12 @@ parenthesisparser = do
     symbol ")"
     return arg
 
-ifParse :: Parser Exp
-ifParse = do
-    symbol "if"
-    symbol "("
-    t <- expparse
-    symbol ")"
-    symbol "{"
-    t1 <- stmtparse
-    symbol "}"
-    symbol "else"
-    symbol "{"
-    t2 <- stmtparse
-    symbol "}"
-    return (IfThenElse t t1 t2)
-
 parseNUM :: Parser Exp
 parseNUM = do
      space
      num <- (many1(digit))+++failure
      space
      if num /= [] then let x = (read num :: Int) in return (Num x) else failure
-
-
-predParse :: Parser Exp
-predParse = do
-    symbol "pred"
-    t <- expparse
-    return (Pred t)
-
-succParse :: Parser Exp
-succParse = do
-    op <- symbol "succ"+++symbol "iszero"+++symbol "pred"+++return []
-    case op of
-        "succ"   -> do{t <- succParse;return (Succ t)}
-        "iszero" -> do{t <- succParse;return (IsZero t)}
-        "pred"   -> do{t <- succParse;return (Pred t)}
-        _        -> do{v <- valueparse; return v}
-
-falseParse :: Parser Exp
-falseParse = do
-    symbol "false"
-    return Fls
-
-
-trueParse :: Parser Exp
-trueParse = do
-    symbol "true"
-    return Tru
-
-
-iszeroParse :: Parser Exp
-iszeroParse = do
-    symbol "iszero"
-    t <- expparse
-    return (IsZero t)
 
 getdict :: Parser [(String,Int)]
 getdict = Parser (\string dict -> [(dict,string,dict)] )
@@ -161,6 +244,7 @@ vartypeparse = do
         isKey <- keywordParse
         if isKey /= [] then failure else do{
         name <- (many1(letter))+++return [];
+        space;
         if name /= [] then
             case lookup name variables of
                     (Just x) -> return (VarT x)
@@ -168,20 +252,27 @@ vartypeparse = do
 
         else failure;}
 
-booltypeparse :: Parser TypeVariable
-booltypeparse = do
-    symbol "bool"
-    return (Type Boolean)
+varparse :: Parser Exp
+varparse = do
+    variables <- getdict
+    isKey <- keywordParse
+    if isKey /= [] then failure else do{
+    name <- (many1(letter))+++return [];
+    space;
+    if name /= [] then
+        case lookup name variables of
+                (Just x) -> return (Variable (Var (x)))
+                _ -> Parser(\ string dict -> [((Variable (Var (findFresh variables 0))),string,dict++[(name,findFresh variables 0)])])
 
-inttypeparse :: Parser TypeVariable
-inttypeparse = do
-    symbol "int"
-    return (Type Integer)
+    else failure;}
+
+keywordParse :: Parser String
+keywordParse = symbol "true"+++symbol "false"+++symbol "let"+++symbol "if" +++ symbol "else" +++ symbol "while" +++ symbol "alloc" +++ symbol "in" +++ symbol "letrec" +++  symbol "fix" +++  symbol "pred" +++ symbol "succ" +++  symbol "iszero" +++return []
 
 typeparse:: Parser (TypeVariable)
 typeparse = do
     space
-    tipo <- booltypeparse+++inttypeparse+++vartypeparse+++do{
+    tipo <- do{symbol "bool";return (Type Boolean)}+++do{symbol "int";return (Type Integer)}+++vartypeparse+++do{
     symbol "(";
     res <- typeparse;
     symbol ")";
@@ -190,180 +281,29 @@ typeparse = do
     isFunction <- symbol "->"+++return []
     if isFunction == "->" then
         do{remaining <- typeparse; return(FunType tipo remaining)}
-    else do{return tipo}
-
-applicationParse :: Exp -> Parser Exp
-applicationParse acc = do
-        res <-  trueParse +++
-                falseParse+++
-                parseNUM+++
-                varparse+++
-                derefparse+++
-                do{
-                symbol "(";
-                lambda <- lambdaparse +++
-                          lambdatypedparse +++
-                          appParse +++
-                          trueParse +++
-                          falseParse +++
-                          parseNUM +++
-                          varparse+++
-                          derefparse
-                          ;
-                symbol ")";
-                return lambda};
-        space;
-        right <- applicationParse (App acc res)+++return (App acc res);
-        space;
-        return right
-
-
-appParse :: Parser Exp
-appParse = do
-    name <- varparse+++do{symbol "(";lambda <- lambdaparse+++lambdatypedparse+++derefparse+++appParse; symbol ")";return lambda};
-    space;
-    res <- applicationParse name;
-    return res
-
-devar (Variable (Var x)) = Var x
+        else do{return tipo}
 
 lambdaparse :: Parser Exp
 lambdaparse = do
     symbol "\\"
-    var <- varparse
+    (Variable (Var var)) <- varparse
     symbol "->"
     t <- stmtparse
-    return (LambdaUntyped (devar var) t)
-
-allocparse :: Parser Exp
-allocparse = do
-    symbol "alloc"
-    t <- expparse
-    return (Ref t)
-
-derefparse :: Parser Exp
-derefparse = do
-    symbol "*"
-    t <- expparse
-    return (Deref t)
-
-expparse :: Parser Exp
-expparse = do
-    expr <- ifParse+++
-            allocparse+++
-            derefparse+++
-            whileparse+++
-            sum_minusparse
-    return expr
-
-whileparse :: Parser Exp
-whileparse = do
-    symbol "while"
-    symbol "("
-    guard<- sum_minusparse
-    symbol ")"
-    symbol "{"
-    prog <- progparse
-    symbol "}"
-    return (While guard prog)
-
-sum_minusparse = do
-    a<- succParse
-    check <- symbol "+"+++symbol "-"+++return []
-    if check == [] then return a else
-        do{
-        b <- sum_minusparse;
-        if check == "+"
-            then return (Plus a b)
-            else return (Minus a b)
-        }
-
-
-fixparse :: Parser Exp
-fixparse = do
-    symbol "fix"
-    t <- succParse
-    return (Fix t)
-
-assignparse :: Parser Exp
-assignparse = do
-    var<- varparse +++do{symbol "(";res<-stmtparse;symbol ")";return res}
-    symbol ":="
-    t2 <- expparse
-    return (Assign var t2)
+    return (LambdaUntyped (Var var) t)
 
 
 findFresh :: [(String,Int)] -> Int -> Int
 findFresh [] acc = acc
 findFresh ((name,x):xs) acc = if acc < x then findFresh xs (x+1) else if acc == x then findFresh xs (acc+1) else findFresh xs acc
 
-keywordParse :: Parser String
-keywordParse = symbol "true"+++symbol "false"+++symbol "let"+++symbol "if" +++ symbol "else" +++ symbol "while" +++ symbol "alloc" +++ symbol "in" +++ symbol "letrec" +++  symbol "fix" +++  symbol "pred" +++ symbol "succ" +++  symbol "iszero" +++return []
-
-
-varparse :: Parser Exp
-varparse = do
-    variables <- getdict
-    isKey <- keywordParse
-    if isKey /= [] then failure else do{
-    name <- (many1(letter))+++return [];
-    if name /= [] then
-        case lookup name variables of
-                (Just x) -> return (Variable (Var (x)))
-                _ -> Parser(\ string dict -> [((Variable (Var (findFresh variables 0))),string,dict++[(name,findFresh variables 0)])])
-
-    else failure;}
-
-letrecparse :: Parser Exp
-letrecparse = do
-    symbol "letrec"
-    x <- varparse
-    symbol "="
-    t1 <- stmtparse
-    symbol "in"
-    t2 <- progparse
-    return (Let (devar x) (Fix (LambdaUntyped (devar x)  t1 ) ) t2)
-
-
-stmtparse :: Parser Exp
-stmtparse = do
-    check <- letparser+++assignparse+++letrecparse+++expparse
-    return check
-
-letparser :: Parser Exp
-letparser = do
-    symbol "let"
-    x <- varparse
-    symbol "="
-    t1 <- progparse
-    symbol "in"
-    t2 <- progparse
-    return (Let (devar x) t1 t2 )
-
-progparse :: Parser Exp
-progparse = do
-   esp <- stmtparse
-   punto_e_virgola <- symbol ";"+++return []
-   if punto_e_virgola == ";" then do{t2 <- progparse; return (Seq esp t2) } else return esp
-
-firstparse :: Parser Exp
-firstparse = do
-    res <- progparse
-    return res
-
 lambdatypedparse :: Parser Exp
 lambdatypedparse = do
     symbol "\\"
-    var <- varparse
+    (Variable (Var var)) <- varparse
     symbol ":"
     symbol "("
     typevar <- typeparse
     symbol ")"
     symbol "->"
     t <- stmtparse
-    return (Lambda (devar var) typevar t)
-
-valueparse :: Parser Exp
-valueparse = do
-    t <- appParse+++lambdatypedparse+++lambdaparse+++trueParse+++falseParse+++parseNUM+++parenthesisparser+++varparse
-    return t
+    return (Lambda (Var var) typevar t)

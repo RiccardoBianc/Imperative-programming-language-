@@ -52,6 +52,7 @@ data Types = Unita | Boolean | Integer | Fun Types Types | TypeRef Types derivin
 data Context = Context [(Int,Types)]
 data Memory = Memory [(Int,Exp)] deriving (Show)
 data AssignType = AssignType [(Int,Types)]
+type Unificator = [(TypeVariable,TypeVariable)]
 
 sumv (Var x) y = Var (x+y)
 modulo (Var x) = if x>=0 then (Var x) else (Var (-1))

@@ -12,11 +12,11 @@ import           Typechecker
 
 parsa filename = do
     res <- readFile filename
-    return (parse firstparse res)
+    return (parse progparse res)
 
 unifica filename = do
     res <- readFile filename
-    case  (parse (firstparse) (filter (/='\n') res) ) of
+    case  (parse (progparse) (filter (/='\n') res) ) of
                         [] -> return ("Errore di parsing")
                         (parsed,"",_):xs -> case costraint 0 (ContextScheme []) parsed of
                                 Right (_,costraints,tipo) -> return (show (foundPrincipalType (unify (costraints)) tipo ) ) {-("costraint: "++show (costraints)++"----tipo   "++show tipo++"****"++(show (foundPrincipalType (unify (costraints)) tipo ) ))-}
@@ -26,7 +26,7 @@ unifica filename = do
 lettura :: String -> IO String
 lettura filename = do
     res <- readFile filename
-    case  (parse (firstparse) (filter (/='\n') res) ) of
+    case  (parse (progparse) (filter (/='\n') res) ) of
                         [] -> return ("Errore di parsing")
                         (parsed,"",_):xs -> case costraint 0 (ContextScheme []) parsed of
                                 Right (_,costraints,_) -> if (unify costraints) /= Nothing

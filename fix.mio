@@ -1,1 +1,1 @@
-let id = (\x -> x) in if (id) {id 5}else{id true}
+let res = alloc 4 in let new = alloc res in res := 1000; *res
