@@ -1,1 +1,1 @@
-let res = alloc 4 in let new = alloc res in res := 1000; *res
+let boh = alloc (\z->z) in let x = boh in boh:= (\z-> z + 1); (*boh) 4

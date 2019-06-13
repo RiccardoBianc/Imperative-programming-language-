@@ -161,7 +161,6 @@ vcontext :: ContextInference -> [TypeVariable]
 vcontext (ContextInference context_applied) = case unzip context_applied of
                             ([a],b) -> b
 
-
 instantiate :: Int -> [TypeVariable] -> TypeVariable -> (TypeVariable,Int)
 instantiate new [] t = (t,new)
 instantiate new (x:l) t = let (t',new') = aux_instantiate new x t in instantiate new' l t'

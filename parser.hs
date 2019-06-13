@@ -88,6 +88,10 @@ symbol stringa = do
    space
    return res
 
+findFresh :: [(String,Int)] -> Int -> Int
+findFresh [] acc = acc
+findFresh ((name,x):xs) acc = if acc < x then findFresh xs (x+1) else if acc == x then findFresh xs (acc+1) else findFresh xs acc
+
 progparse :: Parser Exp
 progparse = do
   esp <- stmtparse
@@ -104,7 +108,7 @@ letparser = do
   symbol "let"
   (Variable (Var x)) <- varparse
   symbol "="
-  t1 <- stmtparse
+  t1 <- lambdaparse+++stmtparse
   symbol "in"
   t2 <- progparse
   return (Let (Var x) t1 t2 )
@@ -114,7 +118,7 @@ letrecparse = do
   symbol "letrec"
   (Variable (Var x)) <- varparse
   symbol "="
-  t1 <- stmtparse
+  t1 <- lambdaparse+++stmtparse
   symbol "in"
   t2 <- progparse
   return (Let (Var x) (Fix (LambdaUntyped (Var x)  t1 ) ) t2)
@@ -218,7 +222,7 @@ leftAssociativeApp acc = do
 
 valueparse :: Parser Exp
 valueparse = do
-  t <- lambdatypedparse+++lambdaparse+++do{symbol "true";return Tru}+++do{symbol "false";return Fls}+++parseNUM+++parenthesisparser+++varparse
+  t <- do{symbol "(";lambda <- lambdaparse;symbol ")";return lambda}+++do{symbol "true";return Tru}+++do{symbol "false";return Fls}+++parseNUM+++parenthesisparser+++varparse
   return t
 
 parenthesisparser :: Parser Exp
@@ -284,17 +288,15 @@ typeparse = do
         else do{return tipo}
 
 lambdaparse :: Parser Exp
-lambdaparse = do
+lambdaparse = untypedLambdaParse+++lambdatypedparse
+
+untypedLambdaParse :: Parser Exp
+untypedLambdaParse = do
     symbol "\\"
     (Variable (Var var)) <- varparse
     symbol "->"
-    t <- stmtparse
+    t <- stmtparse+++lambdaparse
     return (LambdaUntyped (Var var) t)
-
-
-findFresh :: [(String,Int)] -> Int -> Int
-findFresh [] acc = acc
-findFresh ((name,x):xs) acc = if acc < x then findFresh xs (x+1) else if acc == x then findFresh xs (acc+1) else findFresh xs acc
 
 lambdatypedparse :: Parser Exp
 lambdatypedparse = do
@@ -305,5 +307,5 @@ lambdatypedparse = do
     typevar <- typeparse
     symbol ")"
     symbol "->"
-    t <- stmtparse
+    t <- stmtparse+++lambdaparse
     return (Lambda (Var var) typevar t)
